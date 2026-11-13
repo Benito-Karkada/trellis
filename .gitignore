@@ -1,0 +1,17 @@
+.env
+.venv/
+.npm-cache/
+__pycache__/
+*.sqlite3
+node_modules/
+dist/
+*.tsbuildinfo
+private-media/
+var/
+.env
+source-materials/
+*.pem
+*token*.txt
+.DS_Store
+
+.venv-loadtest/

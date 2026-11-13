@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cs1301
+      POSTGRES_USER: cs1301
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cs1301"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  backend:
+    build: ./backend
+    command: ["sh", "start-web.sh"]
+    env_file: .env
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      ALLOW_LOCAL_LOGIN: "1"
+    volumes:
+      - ./backend:/app
+      - ./var:/course-var:ro
+      - private-media:/app/private-media
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+
+  celery:
+    build: ./backend
+    command: ["celery", "-A", "config.celery", "worker", "-l", "INFO"]
+    env_file: .env
+    volumes:
+      - ./backend:/app
+      - private-media:/app/private-media
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+
+  frontend:
+    build: ./frontend
+    ports: ["127.0.0.1:5173:5173"]
+    volumes:
+      - ./frontend:/app
+      - frontend-modules:/app/node_modules
+    depends_on: [backend]
+
+  runner-controller:
+    build: ./runner
+    command: ["python", "worker.py"]
+    environment:
+      REDIS_URL: redis://redis:6379/1
+    depends_on: [redis]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+volumes:
+  postgres-data:
+  redis-data:
+  private-media:
+  frontend-modules:
