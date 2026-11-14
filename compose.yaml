@@ -33,6 +33,7 @@ services:
       TRELLIS_FRONTEND_PORT: ${TRELLIS_FRONTEND_PORT:-5173}
     volumes:
       - ./backend:/app
+      - ./course-data:/course-data:ro
       - private-media:/app/private-media
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/', timeout=3)"]

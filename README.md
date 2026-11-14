@@ -4,7 +4,7 @@
 
 # Trellis
 
-A local course-building and learning platform. Instructors create lessons and exercises; students read, practice, write Python, and receive feedback in one workspace. The included CS 1301 demo has readings, a native question, an ungraded sandbox, coding exercises, and a five-question staff-preview quiz.
+A local course-building and learning platform. Instructors create lessons and exercises; students read, practice, write Python, and receive feedback in one workspace. The included CS 1301 course has 26 sections and 1,064 parts, including readings, videos, native questions, coding exercises, sandboxes, and all six programming quizzes.
 
 ## Start locally
 
@@ -16,7 +16,7 @@ cd trellis
 python3 scripts/setup-local.py
 ```
 
-The first run builds the containers and can take a few minutes. Later runs reuse the images. Setup creates a private `.env`, starts the local services, applies database migrations, and seeds the demo. Running it again preserves your content edits and existing demo passwords.
+The first run builds the containers and can take a few minutes. Later runs reuse the images. Setup creates a private `.env`, starts the local services, applies database migrations, and loads the complete course from `course-data/cs1301.tar.gz`. Running it again preserves your content edits, saved work, and existing local passwords.
 
 Open **http://localhost:5173** and choose **Open local instructor workspace**. You can also sign in using:
 
@@ -25,7 +25,7 @@ Open **http://localhost:5173** and choose **Open local instructor workspace**. Y
 | Instructor | `instructor@trellis.local` | `trellis-demo-2026` |
 | Student | `student@trellis.local` | `trellis-demo-2026` |
 
-These accounts are for your local demo only. The instructor can manage enrollment and create additional users from Course settings. No external service account is required.
+These accounts are for your local development setup only. The instructor can manage enrollment and create additional users from Course settings. No external service account is required.
 
 ## Enable Python Run / Submit
 
@@ -63,7 +63,7 @@ Frontend and backend source are mounted into their development containers. Chang
 
 If ports 5173 or 8000 are in use, change `TRELLIS_FRONTEND_PORT` and `TRELLIS_BACKEND_PORT` in `.env`, recreate the containers, and restart the worker. The worker reads the local backend port automatically. The database, cache, and private files use this project's own Docker volumes; only the web and API ports bind to localhost.
 
-Edit normal course content in the instructor UI. Use Config to edit instructions, question JSON, files, and grading definitions; save and publish to update student content. The staff preview uses the student renderer. Course data and student work stay in the local database and private media volume, outside Git.
+The bundled snapshot initializes a fresh local database once. Normal edits stay in your database and are not written back into the bundle. Edit normal course content in the instructor UI. Use Config to edit instructions, question JSON, files, and grading definitions; save and publish to update student content. The staff preview uses the student renderer. Course data and student work stay in the local database and private media volume, outside Git.
 
 ## Checks
 
@@ -87,6 +87,7 @@ For the optional Docker-backed runner checks, set `RUN_DOCKER_TESTS=1` when runn
 - `backend/` — Django models, authentication, course authoring, grading records, REST APIs, and tests.
 - `runner/` — Python grading engine and isolated execution worker.
 - `scripts/` — local setup, worker startup, API client, and execution smoke check.
+- `course-data/` — the full course baseline, with exercise files, native graders, solutions, and referenced images; no original accounts or student work.
 - `loadtests/` — optional bounded local load tests.
 - `extensions/trellis-ed/` — optional discussion browser extension.
 - `docs/` — feature and local-development documentation.
