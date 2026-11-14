@@ -158,7 +158,7 @@ export default function CodeVisualizer({
     if (busy || loading) return;
     clearTrace();
     setBusy(true);
-    setPhase("Queued for the Python runner…");
+    setPhase("Queued for the Python runnerâ€¦");
     const version = ++sequence.current;
     const deadline = Date.now() + 310000;
     try {
@@ -198,8 +198,8 @@ export default function CodeVisualizer({
             );
           setPhase(
             state.status === "running"
-              ? "Tracing Python execution…"
-              : "Queued for the Python runner…",
+              ? "Tracing Python executionâ€¦"
+              : "Queued for the Python runnerâ€¦",
           );
           timer.current = setTimeout(() => void poll(), 700);
         } catch (e) {
@@ -225,7 +225,7 @@ export default function CodeVisualizer({
           title={`View ${heap[value.ref]?.type || "object"} #${value.ref}`}
           onClick={() => setFocused(value.ref!)}
         >
-          ↗ {heap[value.ref]?.type || "object"} #{value.ref}
+          â†— {heap[value.ref]?.type || "object"} #{value.ref}
         </button>
       );
     const text =
@@ -242,7 +242,7 @@ export default function CodeVisualizer({
       <span className={`viz-value type-${value.type}`}>
         <code>
           {text}
-          {value.truncated ? "…" : ""}
+          {value.truncated ? "â€¦" : ""}
         </code>
         <small>{value.type}</small>
       </span>
@@ -289,10 +289,6 @@ export default function CodeVisualizer({
                 : "Choose an example or edit the code, then step through its execution."}
             </p>
           </div>
-          <span className="viz-mode">
-            <Layers size={16} />
-            Line-by-line execution
-          </span>
         </div>
         {!activity && (
           <div className="viz-library" aria-label="Python examples">
@@ -350,7 +346,7 @@ export default function CodeVisualizer({
         )}
         {loading ? (
           <div className="viz-loading" role="status">
-            Opening sample answers…
+            Opening sample answersâ€¦
           </div>
         ) : activity && !samples ? (
           <button onClick={onBack}>Return to exercise</button>
@@ -387,9 +383,25 @@ export default function CodeVisualizer({
                   ) : (
                     <small>{activity ? samplePath : "Python"}</small>
                   )}
+                  {!activity && (
+                    <button
+                      className="viz-reset"
+                      type="button"
+                      title="Restore the selected example code"
+                      aria-label="Reset code to the selected example"
+                      disabled={busy || source === example.source}
+                      onClick={() => {
+                        setSource(example.source);
+                        clearTrace();
+                      }}
+                    >
+                      <RotateCcw size={15} />
+                      Reset
+                    </button>
+                  )}
                 </div>
                 <Suspense
-                  fallback={<div className="viz-loading">Opening editor…</div>}
+                  fallback={<div className="viz-loading">Opening editorâ€¦</div>}
                 >
                   <EditorPane
                     path={`visualizer/${activity || "lab"}/${samplePath || "example.py"}`}
@@ -417,7 +429,7 @@ export default function CodeVisualizer({
                   >
                     <Play size={16} />
                     {busy
-                      ? "Building trace…"
+                      ? "Building traceâ€¦"
                       : trace
                         ? "Rebuild trace"
                         : "Visualize code"}
