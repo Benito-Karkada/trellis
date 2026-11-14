@@ -171,6 +171,7 @@ class DiscussionPostRevision(models.Model):
 
 class DiscussionAttachment(models.Model):
     thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="attachments")
+    reply = models.ForeignKey(DiscussionReply, null=True, blank=True, on_delete=models.CASCADE, related_name="attachments")
     uploader = models.ForeignKey(Membership, null=True, on_delete=models.SET_NULL)
     name = models.CharField(max_length=120)
     blob = models.FileField(upload_to="discussion-attachments/%Y/%m/")

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowLeft, Bold, Bookmark, Check, ChevronDown, ChevronUp, Code2, Eye, Filter, Italic, Link2, List, ListOrdered, LockKeyhole, MessageCircle, Pin, Plus, Quote, Search, Send, Star, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowLeft, Bold, Bookmark, Check, ChevronDown, ChevronUp, Code2, Eye, Filter, Italic, Link2, List, ListOrdered, LockKeyhole, MessageCircle, Paperclip, Pin, Plus, Quote, Search, Send, Star, ThumbsUp, Trash2 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import LogoutButton from "./LogoutButton";
 import DiscussionSelect from "./DiscussionSelect";
@@ -9,11 +9,12 @@ import { routeHref } from "./navigation";
 import "./discussionBoard.css";
 
 type Folder = { id: number; name: string; position: number };
+type Attachment = { id: number; name: string; size: number; mine: boolean };
 type Settings = { allow_student_posts: boolean; allow_student_notes: boolean; allow_student_polls: boolean; allow_anonymous: boolean; allow_anonymous_to_staff: boolean; allow_private: boolean; allow_student_answers: boolean; require_folder: boolean; reading_list_enabled: boolean; require_reading_before_posting: boolean };
 type Thread = { id: number; title: string; body: string; editor_mode: "formatted" | "plain" | "markdown"; kind: "question" | "note" | "poll"; visibility: "public" | "private"; anonymous: string; author: string; mine: boolean; author_is_staff: boolean; created_at: string; updated_at: string; folders: Folder[]; pinned: boolean; reading_list: boolean; required_reading: boolean; locked: boolean; endorsed: boolean; history_hidden: boolean; history_count: number; reply_count: number; unresolved_count: number; view_count: number; like_count: number; has_student_answer: boolean; has_instructor_answer: boolean; student_answer_endorsed: boolean; read: boolean; bookmarked: boolean; following: boolean; archived: boolean; liked: boolean; search_match: { source: string; excerpt: string; score: number } | null };
-type Reply = { id: number; parent_id: number | null; body: string; author: string; author_is_staff: boolean; mine: boolean; resolved: boolean; created_at: string; like_count: number; liked: boolean };
+type Reply = { id: number; parent_id: number | null; body: string; author: string; author_is_staff: boolean; mine: boolean; resolved: boolean; created_at: string; like_count: number; liked: boolean; attachments: Attachment[] };
 type Answer = { body: string; author: string; endorsed: boolean; updated_at: string };
-type Detail = { thread: Thread; answers: Partial<Record<"student" | "instructor", Answer>>; replies: Reply[]; has_more_replies: boolean; poll_options: { id: number; label: string; votes_count: number }[]; my_vote: number | null; attachments: { id: number; name: string; size: number; mine: boolean }[] };
+type Detail = { thread: Thread; answers: Partial<Record<"student" | "instructor", Answer>>; replies: Reply[]; has_more_replies: boolean; poll_options: { id: number; label: string; votes_count: number }[]; my_vote: number | null; attachments: Attachment[] };
 type Tab = "qa" | "resources" | "statistics" | "manage";
 type Draft = { title: string; body: string; editor_mode: Thread["editor_mode"]; kind: Thread["kind"]; visibility: Thread["visibility"]; anonymous: string; folder_ids: number[]; options: string[]; updated_at?: string };
 const date = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
@@ -47,6 +48,14 @@ function PostBody({ text, mode = "formatted" }: { text: string; mode?: Thread["e
   })}</div>;
 }
 
+function AttachmentPicker({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
+  return <div className="db-attachment-picker">
+    <label><Paperclip size={16} /> Choose files<input type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.py,.ipynb" onChange={event => onChange(Array.from(event.target.files || []))} /></label>
+    <small>Images, PDFs, text, Python, or notebooks · 2 MB per file</small>
+    {files.length > 0 && <div className="db-pending-files">{files.map((file, index) => <span key={`${file.name}-${index}`}>{file.name}<button type="button" aria-label={`Remove ${file.name}`} onClick={() => onChange(files.filter((_, number) => number !== index))}>×</button></span>)}</div>}
+  </div>;
+}
+
 export default function DiscussionBoard({ course, selectedPost, onSelectPost, onBack, onSignOut }: {
   course: string; selectedPost: number | null; onSelectPost: (post: number | null) => void;
   onBack: () => void; onSignOut: () => void;
@@ -63,6 +72,7 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   const [sort, setSort] = useState("recent");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -78,10 +88,12 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [anonymous, setAnonymous] = useState("none");
   const [options, setOptions] = useState(["", ""]);
+  const [postFiles, setPostFiles] = useState<File[]>([]);
   const [answerKind, setAnswerKind] = useState<"student" | "instructor" | null>(null);
   const [answerBody, setAnswerBody] = useState("");
   const [followupBody, setFollowupBody] = useState("");
   const [followupAnonymous, setFollowupAnonymous] = useState("none");
+  const [followupFiles, setFollowupFiles] = useState<File[]>([]);
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [stats, setStats] = useState<Record<string, any> | null>(null);
   const [folderName, setFolderName] = useState("");
@@ -98,6 +110,12 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   }, []);
   useEffect(() => { void reloadMeta().catch((failure: Error) => setError(failure.message)); }, [reloadMeta]);
   useEffect(() => { void api("discussions/draft/").then(data => setSavedDraft(data.draft)).catch((failure: Error) => setError(failure.message)); }, []);
+  useEffect(() => {
+    const nextQuery = search.trim();
+    if (!nextQuery) { setQuery(""); return; }
+    const timer = window.setTimeout(() => setQuery(nextQuery), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const feedPath = useCallback((offset = 0) => {
     const params = new URLSearchParams({ filter, sort, offset: String(offset) });
@@ -144,7 +162,16 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
     setKind(thread?.kind || draft?.kind || (tab === "resources" ? "note" : "question")); setTitle(thread?.title || draft?.title || ""); setBody(thread?.body || draft?.body || "");
     setChosenFolders(thread?.folders.map(row => row.id) || draft?.folder_ids.filter(id => folders.some(row => row.id === id)) || []);
     setVisibility(thread?.visibility || draft?.visibility || "public"); setAnonymous(thread?.anonymous || draft?.anonymous || "none"); setOptions(draft?.options.length ? draft.options : ["", ""]);
-    setEditorMode(thread?.editor_mode || draft?.editor_mode || "formatted"); setPreview(false);
+    setEditorMode(thread?.editor_mode || draft?.editor_mode || "formatted"); setPreview(false); setPostFiles([]);
+  }
+
+  async function uploadFiles(path: string, files: File[]) {
+    const failed: string[] = [];
+    for (const file of files) {
+      const data = new FormData(); data.append("file", file);
+      try { await upload(path, data); } catch { failed.push(file.name); }
+    }
+    return failed;
   }
   function formatBody(before: string, after = "", placeholder = "text") {
     const field = bodyRef.current;
@@ -166,15 +193,19 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   async function submitPost(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(""); setNotice("");
     try {
+      let failedFiles: string[] = [];
       if (editing && detail) {
         await api(`discussions/${detail.thread.id}/edit/`, { title, body, editor_mode: editorMode, folder_ids: chosenFolders, visibility, anonymous });
+        failedFiles = await uploadFiles(`discussions/${detail.thread.id}/attachments/`, postFiles);
         await reloadDetail(detail.thread.id); setNotice("Post updated.");
       } else {
         const data = await api("discussions/new/", { title, body, editor_mode: editorMode, kind, visibility, anonymous,
           folder_ids: chosenFolders, options: kind === "poll" ? options : [] });
+        failedFiles = await uploadFiles(`discussions/${data.thread.id}/attachments/`, postFiles);
         onSelectPost(data.thread.id); setSavedDraft(null); setNotice("Post published.");
       }
-      setComposing(false); setEditing(false); await reloadFeed();
+      setPostFiles([]); setComposing(false); setEditing(false); await reloadFeed();
+      if (failedFiles.length) setError(`The post was saved, but ${failedFiles.join(", ")} could not be attached.`);
     } catch (failure) { setError((failure as Error).message); }
     finally { setBusy(false); }
   }
@@ -191,14 +222,21 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   async function postFollowup(event: FormEvent) {
     event.preventDefault(); if (!detail) return;
     setBusy(true); setError("");
-    try { await api(`discussions/${detail.thread.id}/replies/`, { body: followupBody, parent_id: replyTarget, anonymous: followupAnonymous });
-      setFollowupBody(""); setFollowupAnonymous("none"); setReplyTarget(null); await reloadDetail(detail.thread.id); await reloadFeed(); }
+    try { const data = await api(`discussions/${detail.thread.id}/replies/`, { body: followupBody, parent_id: replyTarget, anonymous: followupAnonymous });
+      const failedFiles = await uploadFiles(`discussions/replies/${data.reply.id}/attachments/`, followupFiles);
+      setFollowupBody(""); setFollowupAnonymous("none"); setFollowupFiles([]); setReplyTarget(null); await reloadDetail(detail.thread.id); await reloadFeed();
+      if (failedFiles.length) setError(`The reply was posted, but ${failedFiles.join(", ")} could not be attached.`); }
     catch (failure) { setError((failure as Error).message); }
     finally { setBusy(false); }
   }
   async function replyAction(id: number, action: string, value: boolean) {
     if (!detail) return;
     try { await api(`discussions/replies/${id}/action/`, { action, value }); await reloadDetail(detail.thread.id); await reloadFeed(); }
+    catch (failure) { setError((failure as Error).message); }
+  }
+  async function removeAttachment(id: number) {
+    if (!detail) return;
+    try { await api(`discussions/attachments/${id}/remove/`, {}); await reloadDetail(detail.thread.id); }
     catch (failure) { setError((failure as Error).message); }
   }
   async function submitAnswer(event: FormEvent) {
@@ -224,6 +262,10 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   const boardTabs: { id: Tab; label: string }[] = [{ id: "qa", label: "Q&A" }, { id: "resources", label: "Resources" }, { id: "statistics", label: staff ? "Statistics" : "My activity" }, ...(staff ? [{ id: "manage" as Tab, label: "Manage board" }] : [])];
   const canPost = staff || !!settings?.allow_student_posts && (tab !== "resources" || !!settings?.allow_student_notes);
   const postingBlocked = !staff && !!settings?.reading_list_enabled && !!settings?.require_reading_before_posting && reading.required > 0;
+  const attachmentList = (items: Attachment[], compact = false) => items.length > 0 && <div className={`db-attachments ${compact ? "compact" : ""}`}>
+    {!compact && <strong>Attachments</strong>}
+    {items.map(item => <div key={item.id}><Paperclip size={13} /><button className="db-attachment-download" onClick={async () => { try { await download(`discussions/attachments/${item.id}/`, item.name); } catch (failure) { setError((failure as Error).message); } }}>{item.name}</button><small>{Math.max(1, Math.ceil(item.size / 1024))} KB</small>{(staff || item.mine) && <button onClick={() => void removeAttachment(item.id)}>Remove</button>}</div>)}
+  </div>;
   const filters = [{ id: "all", label: "All posts" }, { id: "unread", label: "Unread" }, { id: "unresolved", label: "Unresolved" }, { id: "following", label: "Following" }, { id: "bookmarked", label: "Bookmarked" }, { id: "reading", label: "Reading list" }, { id: "mine", label: "My posts" }, { id: "instructor", label: "Instructor posts" }, { id: "archived", label: "Archived" }];
 
   return <div className="discussion-shell">
@@ -237,7 +279,7 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
 
     {(tab === "qa" || tab === "resources") ? <div className="db-workspace">
       <aside className="db-feed">
-        <div className="db-feed-actions"><button className="db-new" disabled={!canPost} onClick={() => openComposer()}><Plus size={17} /> New post</button><form onSubmit={event => { event.preventDefault(); setQuery(search.trim()); }}><Search size={17} /><input aria-label="Search posts, answers, and followups" placeholder="Search posts, answers, and followups…" value={search} onChange={event => setSearch(event.target.value)} />{query && <button type="button" className="db-search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setQuery(""); }}>×</button>}</form></div>
+        <div className="db-feed-actions"><button className="db-new" disabled={!canPost} onClick={() => openComposer()}><Plus size={17} /> New post</button><div className="db-search-field" role="search" onClick={() => searchRef.current?.focus()}><Search size={17} aria-hidden="true" /><input ref={searchRef} type="search" aria-label="Search posts, answers, and followups" placeholder="Search posts, answers, and followups…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button type="button" className="db-search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setQuery(""); }}>×</button>}</div></div>
         {savedDraft && <button className="db-resume-draft" onClick={() => { setTab("qa"); openComposer(undefined, savedDraft); }}>Resume saved draft <span>{date(savedDraft.updated_at || new Date().toISOString())}</span></button>}
         <div className="db-feed-controls"><Filter size={16} /><DiscussionSelect label="Filter posts" compact value={filter} options={filters.map(row => ({ value: row.id, label: row.label }))} onChange={setFilter} />{query ? <span className="db-relevance-sort">Best matches</span> : <DiscussionSelect label="Sort posts" compact value={sort} options={[{value:"recent",label:"Recently active"},{value:"newest",label:"Newest"},{value:"oldest",label:"Oldest"}]} onChange={setSort} />}</div>
         <div className="db-feed-scroll">{loading ? <p className="db-empty">Loading posts…</p> : threads.length === 0 ? <p className="db-empty">No posts match this view. {canPost ? "Start a new post or choose another filter." : "Try another filter."}</p> : threads.map((row, index) =>
@@ -262,13 +304,14 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
           <div className="db-composer-row"><label className="db-composer-label" htmlFor="db-post-title">Summary <b>*</b></label><div className="db-summary-field"><input id="db-post-title" autoFocus maxLength={100} required value={title} onChange={event => setTitle(event.target.value)} placeholder="Enter a one-line summary, 100 characters or less" /><small>{title.length}/100</small></div></div>
           <div className="db-composer-row db-editor-row"><span className="db-composer-label">Details <b>*</b></span><div className="db-editor-area"><div className="db-editor-modes" role="group" aria-label="Editor mode">{([['formatted','Formatted'],['plain','Plain text'],['markdown','Markdown']] as const).map(([value,label]) => <label key={value}><input type="radio" name="editorMode" checked={editorMode === value} onChange={() => { setEditorMode(value); setPreview(false); }} /> {label}</label>)}<button type="button" className={preview ? "active" : ""} aria-pressed={preview} onClick={() => setPreview(value => !value)}>Preview {preview ? "on" : "off"}</button></div>{editorMode === "formatted" && !preview && <div className="db-format-toolbar" role="toolbar" aria-label="Formatting"><button type="button" title="Bold" onClick={() => formatBody("**", "**")}><Bold size={17} /></button><button type="button" title="Italic" onClick={() => formatBody("*", "*")}><Italic size={17} /></button><button type="button" title="Bulleted list" onClick={() => formatBody("- ", "", "item")}><List size={17} /></button><button type="button" title="Numbered list" onClick={() => formatBody("1. ", "", "item")}><ListOrdered size={17} /></button><button type="button" title="Link" onClick={() => formatBody("[", "](https://example.com)", "link text")}><Link2 size={17} /></button><button type="button" title="Code block" onClick={() => formatBody("```\n", "\n```", "code")}><Code2 size={17} /></button><button type="button" title="Quote" onClick={() => formatBody("> ", "", "quote")}><Quote size={17} /></button></div>}{preview ? <div className="db-editor-preview">{body.trim() ? <PostBody text={body} mode={editorMode} /> : <p>Your post will appear here.</p>}</div> : <textarea ref={bodyRef} maxLength={10000} required rows={11} value={body} onChange={event => setBody(event.target.value)} placeholder={editorMode === "plain" ? "Write the details of your post…" : "Write the details of your post. Use the toolbar or Markdown formatting."} />}{editorMode === "formatted" && <small className="db-editor-help">The toolbar adds Markdown formatting. Use Preview to see the result.</small>}</div></div>
           {!editing && kind === "poll" && <div className="db-composer-row"><span className="db-composer-label">Poll choices <b>*</b></span><div className="db-poll-choices">{options.map((option, index) => <input key={index} maxLength={240} required value={option} onChange={event => setOptions(old => old.map((value, number) => number === index ? event.target.value : value))} placeholder={`Choice ${index + 1}`} />)}<button type="button" disabled={options.length >= 8} onClick={() => setOptions(old => [...old, ""])}>Add choice</button></div></div>}
+          <div className="db-composer-row"><span className="db-composer-label">Attachments</span><AttachmentPicker files={postFiles} onChange={setPostFiles} /></div>
           <div className="db-composer-row"><span className="db-composer-label">Show my name as</span><DiscussionSelect label="Show my name as" value={anonymous} onChange={setAnonymous} options={[{value:"none",label:viewerName},...(staff || settings?.allow_anonymous ? [{value:"classmates",label:"Anonymous to classmates"}] : []),...(staff || settings?.allow_anonymous && settings?.allow_anonymous_to_staff ? [{value:"everyone",label:"Anonymous to everyone"}] : [])]} /></div>
           <div className="db-composer-actions"><button className="db-primary" disabled={busy || postingBlocked || !title.trim() || !body.trim() || !!settings?.require_folder && chosenFolders.length === 0}><Send size={16} />{busy ? "Saving…" : editing ? "Save post" : `Post ${kind} to ${visibility === "public" ? "class" : "instructors"}`}</button>{!editing && <button type="button" onClick={() => void saveDraft()} disabled={busy}>Save draft</button>}<button type="button" onClick={() => setComposing(false)}>Cancel</button>{savedDraft && !editing && <button type="button" className="db-discard-draft" onClick={async () => { try { await api("discussions/draft/discard/", {}); setSavedDraft(null); setNotice("Saved draft discarded."); } catch (failure) { setError((failure as Error).message); } }}>Discard saved draft</button>}</div>
         </form> : current ? <>
           <div className="db-detail-top"><span>{current.kind === "question" ? "Question" : current.kind === "note" ? "Note" : "Poll"} <b>#{current.id}</b></span><div>{(current.history_count > 1 && (!current.history_hidden || staff)) && <button onClick={async () => { if (history) { setHistory(null); return; } try { const data = await api(`discussions/${current.id}/history/`); setHistory(data.revisions); setHistoryVersion(data.revisions.length - 1); } catch (failure) { setError((failure as Error).message); } }}>History</button>}<button title="Copy link" onClick={async () => { await navigator.clipboard.writeText(discussionLink(current.id)); setNotice("Link copied."); }}>Copy link</button></div></div>
           {history && <div className="db-history"><strong>Post history</strong><div>{history.map((revision, index) => <button key={revision.version} className={historyVersion === index ? "active" : ""} onClick={() => setHistoryVersion(index)}>v{revision.version}</button>)}</div><small>{date(history[historyVersion].created_at)} · edited by {history[historyVersion].editor_label}</small><h3>{history[historyVersion].title}</h3><PostBody text={history[historyVersion].body} mode={history[historyVersion].editor_mode} /></div>}
           <article className="db-post"><h1>{current.title}</h1><div className="db-post-meta">Posted by {current.author} · {date(current.created_at)}{current.visibility === "private" && <span>Private to instructors</span>}</div><PostBody text={current.body} mode={current.editor_mode} />
-            {(detail.attachments.length > 0 || !current.locked || staff) && <div className="db-attachments"><strong>Attachments</strong>{detail.attachments.map(item => <div key={item.id}><button className="db-attachment-download" onClick={async () => { try { await download(`discussions/attachments/${item.id}/`, item.name); } catch (failure) { setError((failure as Error).message); } }}>{item.name}</button><small>{Math.ceil(item.size / 1024)} KB</small>{(staff || item.mine) && <button onClick={async () => { try { await api(`discussions/attachments/${item.id}/remove/`, {}); await reloadDetail(current.id); } catch (failure) { setError((failure as Error).message); } }}>Remove</button>}</div>)}{(!current.locked || staff) && <label className="db-attach-upload">Attach file (up to 2 MB)<input type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.py,.ipynb" onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const data = new FormData(); data.append("file", file); try { await upload(`discussions/${current.id}/attachments/`, data); await reloadDetail(current.id); setNotice("File attached."); } catch (failure) { setError((failure as Error).message); } event.target.value = ""; }} /></label>}</div>}
+            {attachmentList(detail.attachments)}
             <div className="db-tags">{current.folders.map(row => <span key={row.id}>{row.name}</span>)}{current.pinned && <span>Pinned</span>}{current.required_reading && <span>Required reading</span>}{current.reading_list && !current.required_reading && <span>Reading list</span>}{current.endorsed && <span>Instructor endorsed</span>}{current.locked && <span><LockKeyhole size={13} /> Locked</span>}</div>
             <div className="db-post-actions"><button aria-pressed={current.liked} onClick={() => void act("like", !current.liked)}><ThumbsUp size={18} /> {current.like_count}</button><button aria-pressed={current.bookmarked} title={current.bookmarked ? "Remove bookmark" : "Bookmark"} onClick={() => void act("bookmark", !current.bookmarked)}><Bookmark size={18} /></button><button aria-pressed={current.following} title={current.following ? "Unfollow" : "Follow"} onClick={() => void act("follow", !current.following)}><Star size={18} /></button><button title="Copy post link" onClick={async () => { await navigator.clipboard.writeText(discussionLink(current.id)); setNotice("Link copied."); }}><Link2 size={18} /></button><span><Eye size={15} /> {current.view_count} views</span></div>
           </article>
@@ -278,12 +321,12 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
           <section className="db-followups"><h2><MessageCircle size={21} /> {current.reply_count} Followup {current.reply_count === 1 ? "Discussion" : "Discussions"}</h2>{roots.length === 0 && <p>No followups yet.</p>}{roots.map(root => <article className="db-followup" id={`followup-${root.id}`} key={root.id}>
             <div className="db-followup-head"><button className={root.resolved ? "resolved" : "unresolved"} disabled={!staff && !root.mine} title={staff || root.mine ? "Change resolution" : undefined} onClick={() => void replyAction(root.id, "resolve", !root.resolved)}><Check size={14} /> {root.resolved ? "Resolved" : "Unresolved"}</button><div><span>#{current.id}_f{root.id}</span><button title="Copy followup link" onClick={async () => { await navigator.clipboard.writeText(discussionLink(current.id, root.id)); setNotice("Followup link copied."); }}><Link2 size={16} /></button></div></div>
             <div className="db-followup-person"><span className="db-avatar">{initials(root.author)}</span><div><strong>{root.author}</strong>{root.author_is_staff && <em>Instructor</em>}<small>{date(root.created_at)}</small></div></div>
-            <div className="db-followup-copy"><PostBody text={root.body} /></div><div className="db-followup-actions"><button onClick={() => void replyAction(root.id, "like", !root.liked)} aria-pressed={root.liked} title="Like followup"><ThumbsUp size={16} /> {root.like_count}</button>{(staff || root.mine) && <button onClick={() => void replyAction(root.id, "delete", true)}>Remove</button>}</div>
-            <div className="db-comment-thread">{detail.replies.filter(comment => comment.parent_id === root.id).map(comment => <div className="db-comment" key={comment.id}><div className="db-followup-person"><span className="db-avatar">{initials(comment.author)}</span><div><strong>{comment.author}</strong>{comment.author_is_staff && <em>Instructor</em>}<small>{date(comment.created_at)}</small></div></div><PostBody text={comment.body} /><div className="db-followup-actions"><button onClick={() => void replyAction(comment.id, "like", !comment.liked)} aria-pressed={comment.liked} title="Like reply"><ThumbsUp size={15} /> {comment.like_count}</button>{(staff || comment.mine) && <button onClick={() => void replyAction(comment.id, "delete", true)}>Remove</button>}</div></div>)}</div>
-            <button className="db-reply-link" onClick={() => { setReplyTarget(root.id); setFollowupBody(""); requestAnimationFrame(() => document.getElementById("db-followup-compose")?.scrollIntoView({ behavior: "smooth", block: "center" })); }}>↩ Reply</button>
+            <div className="db-followup-copy"><PostBody text={root.body} />{attachmentList(root.attachments, true)}</div><div className="db-followup-actions"><button onClick={() => void replyAction(root.id, "like", !root.liked)} aria-pressed={root.liked} title="Like followup"><ThumbsUp size={16} /> {root.like_count}</button>{(staff || root.mine) && <button onClick={() => void replyAction(root.id, "delete", true)}>Remove</button>}</div>
+            <div className="db-comment-thread">{detail.replies.filter(comment => comment.parent_id === root.id).map(comment => <div className="db-comment" key={comment.id}><div className="db-followup-person"><span className="db-avatar">{initials(comment.author)}</span><div><strong>{comment.author}</strong>{comment.author_is_staff && <em>Instructor</em>}<small>{date(comment.created_at)}</small></div></div><PostBody text={comment.body} />{attachmentList(comment.attachments, true)}<div className="db-followup-actions"><button onClick={() => void replyAction(comment.id, "like", !comment.liked)} aria-pressed={comment.liked} title="Like reply"><ThumbsUp size={15} /> {comment.like_count}</button>{(staff || comment.mine) && <button onClick={() => void replyAction(comment.id, "delete", true)}>Remove</button>}</div></div>)}</div>
+            <button className="db-reply-link" onClick={() => { setReplyTarget(root.id); setFollowupBody(""); setFollowupFiles([]); requestAnimationFrame(() => document.getElementById("db-followup-compose")?.scrollIntoView({ behavior: "smooth", block: "center" })); }}>↩ Reply</button>
           </article>)}
             {detail?.has_more_replies && <button className="db-load" onClick={async () => { const data = await api(`discussions/${current.id}/?offset=${detail.replies.length}`); setDetail(old => old && ({ ...old, replies: [...old.replies, ...data.replies], has_more_replies: data.has_more_replies })); }}>Load more followups</button>}
-            {(!current.locked || staff) && <form id="db-followup-compose" onSubmit={postFollowup}><label>{replyTarget ? "Reply to followup" : "New followup"}<textarea required maxLength={10000} rows={4} value={followupBody} onChange={event => setFollowupBody(event.target.value)} placeholder="Add a question or comment…" /></label><div>{(staff || settings?.allow_anonymous) && <div className="db-followup-name"><span>Show my name</span><DiscussionSelect label="Followup name visibility" compact value={followupAnonymous} onChange={setFollowupAnonymous} options={[{value:"none",label:"To everyone"},{value:"classmates",label:"Only to instructors"},...(staff || settings?.allow_anonymous && settings?.allow_anonymous_to_staff ? [{value:"everyone",label:"To no one"}] : [])]} /></div>}{replyTarget && <button type="button" onClick={() => setReplyTarget(null)}>Cancel</button>}<button className="db-primary" disabled={busy || !followupBody.trim()}><Send size={15} /> Post {replyTarget ? "reply" : "followup"}</button></div></form>}
+            {(!current.locked || staff) && <form id="db-followup-compose" onSubmit={postFollowup}><label>{replyTarget ? "Reply to followup" : "New followup"}<textarea required maxLength={10000} rows={4} value={followupBody} onChange={event => setFollowupBody(event.target.value)} placeholder="Add a question or comment…" /></label><AttachmentPicker files={followupFiles} onChange={setFollowupFiles} /><div>{(staff || settings?.allow_anonymous) && <div className="db-followup-name"><span>Show my name</span><DiscussionSelect label="Followup name visibility" compact value={followupAnonymous} onChange={setFollowupAnonymous} options={[{value:"none",label:"To everyone"},{value:"classmates",label:"Only to instructors"},...(staff || settings?.allow_anonymous && settings?.allow_anonymous_to_staff ? [{value:"everyone",label:"To no one"}] : [])]} /></div>}{replyTarget && <button type="button" onClick={() => { setReplyTarget(null); setFollowupFiles([]); }}>Cancel</button>}<button className="db-primary" disabled={busy || !followupBody.trim()}><Send size={15} /> Post {replyTarget ? "reply" : "followup"}</button></div></form>}
           </section>
         </> : <div className="db-placeholder"><MessageCircle size={38} /><h2>Choose a post</h2><p>Read a question, share an answer, or start a new post.</p></div>}
       </main>

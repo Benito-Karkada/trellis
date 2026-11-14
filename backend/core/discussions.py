@@ -4,7 +4,7 @@ from io import StringIO
 from pathlib import Path
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, When
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Prefetch, Q, When
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -310,7 +310,12 @@ def reply_data(reply, member, staff):
         "author_is_staff": bool(visible_name != "Anonymous" and reply.author and reply.author.role != "student"),
         "mine": reply.author_id == member.pk, "resolved": reply.resolved,
         "created_at": reply.created_at.isoformat(), "like_count": getattr(reply, "like_count", 0),
-        "liked": bool(getattr(reply, "liked", False))}
+        "liked": bool(getattr(reply, "liked", False)),
+        "attachments": [attachment_data(item, member) for item in getattr(reply, "visible_attachments", [])]}
+
+
+def attachment_data(item, member):
+    return {"id": item.pk, "name": item.name, "size": item.size, "mine": item.uploader_id == member.pk}
 
 
 @require_GET
@@ -326,6 +331,8 @@ def read_thread(request, pk):
     thread.like_count = thread.member_states.filter(liked=True).count()
     thread.history_count = thread.revisions.count()
     replies = list(thread.replies.filter(deleted_at=None).select_related("author__user")
+        .prefetch_related(Prefetch("attachments", queryset=DiscussionAttachment.objects.filter(
+            deleted_at=None).order_by("created_at", "pk"), to_attr="visible_attachments"))
         .annotate(like_count=Count("likes"), liked=Exists(DiscussionReplyLike.objects.filter(reply=OuterRef("pk"), membership=member)))
         .order_by("created_at", "pk")[offset:offset + 51])
     answers = {row.kind: {"body": row.body, "author": row.last_editor_label,
@@ -336,29 +343,46 @@ def read_thread(request, pk):
     return JsonResponse({"thread": thread_data(thread, member, staff, state), "answers": answers,
         "replies": [reply_data(row, member, staff) for row in replies[:50]], "has_more_replies": len(replies) > 50,
         "poll_options": options, "my_vote": my_vote,
-        "attachments": [{"id": row.pk, "name": row.name, "size": row.size, "mine": row.uploader_id == member.pk}
-            for row in thread.attachments.filter(deleted_at=None).order_by("created_at", "pk")]})
+        "attachments": [attachment_data(row, member) for row in thread.attachments.filter(
+            reply=None, deleted_at=None).order_by("created_at", "pk")]})
 
 
-@require_POST
-def upload_attachment(request, pk):
-    member = current_member(request); staff = is_staff(request, member)
-    thread = visible_thread(request, pk, member)
-    if thread.locked and not staff: raise PermissionDenied
+def save_attachment(request, member, thread, reply=None):
     file = request.FILES.get("file")
     if not file or file.size <= 0 or file.size > 2_000_000:
         return JsonResponse({"error": "Choose a file under 2 MB."}, status=400)
     name = Path(file.name.replace("\\", "/")).name[:120]
     if Path(name).suffix.lower() not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".txt", ".py", ".ipynb"}:
         return JsonResponse({"error": "Use an image, PDF, text, Python, or notebook file."}, status=400)
-    item = DiscussionAttachment.objects.create(thread=thread, uploader=member, name=name, blob=file, size=file.size)
-    return JsonResponse({"attachment": {"id": item.pk, "name": item.name, "size": item.size, "mine": True}}, status=201)
+    item = DiscussionAttachment.objects.create(thread=thread, reply=reply, uploader=member,
+        name=name, blob=file, size=file.size)
+    return JsonResponse({"attachment": attachment_data(item, member)}, status=201)
+
+
+@require_POST
+def upload_attachment(request, pk):
+    member = current_member(request); staff = is_staff(request, member)
+    thread = visible_thread(request, pk, member)
+    if not staff and (thread.locked or thread.author_id != member.pk): raise PermissionDenied
+    return save_attachment(request, member, thread)
+
+
+@require_POST
+def upload_reply_attachment(request, pk):
+    member = current_member(request); staff = is_staff(request, member)
+    reply = get_object_or_404(DiscussionReply.objects.select_related("thread"), pk=pk,
+        deleted_at=None, thread__course=member.course, thread__deleted_at=None)
+    visible_thread(request, reply.thread_id, member)
+    if not staff and (reply.thread.locked or reply.author_id != member.pk): raise PermissionDenied
+    return save_attachment(request, member, reply.thread, reply)
 
 
 @require_GET
 def download_attachment(request, pk):
     member = current_member(request)
-    item = get_object_or_404(DiscussionAttachment.objects.select_related("thread"), pk=pk, deleted_at=None,
+    items = DiscussionAttachment.objects.select_related("thread", "reply").filter(
+        Q(reply=None) | Q(reply__deleted_at=None))
+    item = get_object_or_404(items, pk=pk, deleted_at=None,
         thread__course=member.course, thread__deleted_at=None)
     visible_thread(request, item.thread_id, member)
     return FileResponse(item.blob.open("rb"), as_attachment=True, filename=item.name, content_type="application/octet-stream")
@@ -368,7 +392,8 @@ def download_attachment(request, pk):
 @json_body
 def remove_attachment(request, pk):
     member = current_member(request)
-    item = get_object_or_404(DiscussionAttachment, pk=pk, deleted_at=None,
+    items = DiscussionAttachment.objects.filter(Q(reply=None) | Q(reply__deleted_at=None))
+    item = get_object_or_404(items, pk=pk, deleted_at=None,
         thread__course=member.course, thread__deleted_at=None)
     visible_thread(request, item.thread_id, member)
     if not is_staff(request, member) and item.uploader_id != member.pk: raise PermissionDenied

@@ -189,13 +189,42 @@ class DiscussionTests(TestCase):
             {"file": SimpleUploadedFile("example.py", b"print(1)\n", content_type="text/plain")})
         self.assertEqual(uploaded.status_code, 201)
         attachment = uploaded.json()["attachment"]
+        reply = self.post(f"/api/discussions/{pk}/replies/", {"body": "My traceback is attached."}).json()["reply"]
+        reply_upload = self.client.post(f'/api/discussions/replies/{reply["id"]}/attachments/',
+            {"file": SimpleUploadedFile("traceback.txt", b"ValueError: example\n", content_type="text/plain")})
+        self.assertEqual(reply_upload.status_code, 201)
+        reply_attachment = reply_upload.json()["attachment"]
+        detail = self.client.get(f"/api/discussions/{pk}/").json()
+        self.assertEqual([row["name"] for row in detail["attachments"]], ["example.py"])
+        self.assertEqual([row["name"] for row in detail["replies"][0]["attachments"]], ["traceback.txt"])
         self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{reply_attachment["id"]}/').status_code, 200)
         other = get_user_model().objects.create_user("classmate")
         Membership.objects.create(course=self.course, user=other, role="student")
         self.client.force_login(other)
         self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{reply_attachment["id"]}/').status_code, 404)
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 200)
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{reply_attachment["id"]}/').status_code, 200)
+
+    def test_members_cannot_attach_files_to_someone_elses_post_or_reply(self):
+        thread = self.post("/api/discussions/new/", {"title": "Public file question", "body": "Help"}).json()["thread"]
+        reply = self.post(f'/api/discussions/{thread["id"]}/replies/', {"body": "Student followup"}).json()["reply"]
+        classmate = get_user_model().objects.create_user("attachment-classmate")
+        Membership.objects.create(course=self.course, user=classmate, role="student")
+        self.client.force_login(classmate)
+        file = lambda: {"file": SimpleUploadedFile("example.txt", b"hello", content_type="text/plain")}
+        self.assertEqual(self.client.post(f'/api/discussions/{thread["id"]}/attachments/', file()).status_code, 403)
+        self.assertEqual(self.client.post(f'/api/discussions/replies/{reply["id"]}/attachments/', file()).status_code, 403)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.post(f'/api/discussions/{thread["id"]}/attachments/', file()).status_code, 201)
+        uploaded = self.client.post(f'/api/discussions/replies/{reply["id"]}/attachments/', file())
+        self.assertEqual(uploaded.status_code, 201)
+        self.assertEqual(self.post(f'/api/discussions/replies/{reply["id"]}/action/',
+            {"action": "delete", "value": True}).status_code, 200)
+        self.assertEqual(self.client.get(
+            f'/api/discussions/attachments/{uploaded.json()["attachment"]["id"]}/').status_code, 404)
 
     def test_student_view_hides_staff_controls(self):
         self.client.force_login(self.staff)

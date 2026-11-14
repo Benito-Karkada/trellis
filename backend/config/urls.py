@@ -114,6 +114,7 @@ urlpatterns += [path("api/discussions/", discussions.list_threads),
     path("api/discussions/<int:pk>/delete/", discussions.delete_thread),
     path("api/discussions/<int:pk>/vote/", discussions.vote),
     path("api/discussions/<int:pk>/attachments/", discussions.upload_attachment),
+    path("api/discussions/replies/<int:pk>/attachments/", discussions.upload_reply_attachment),
     path("api/discussions/attachments/<int:pk>/", discussions.download_attachment),
     path("api/discussions/attachments/<int:pk>/remove/", discussions.remove_attachment),
     path("api/discussions/replies/<int:pk>/action/", discussions.reply_action)]

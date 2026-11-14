@@ -22,8 +22,10 @@
 .db-feed-actions { display:flex; gap:8px; padding:12px 14px 8px; }
 .discussion-shell .db-new,.discussion-shell .db-primary { flex:none; min-height:39px; padding:0 13px; border-radius:8px; background:#315d51; color:#fff; font-weight:750; }
 .discussion-shell .db-new:hover:not(:disabled),.discussion-shell .db-primary:hover:not(:disabled) { background:#23493e; color:#fff; }
-.db-feed-actions form { display:flex; flex:1; min-width:0; align-items:center; gap:7px; padding:0 10px; border:1px solid #c3d0c5; border-radius:8px; background:#fff; color:#6c7c70; }
-.db-feed-actions input { width:100%; min-width:0; border:0; outline:0; background:transparent; font-size:12px; }
+.db-search-field { display:flex; flex:1; min-width:0; min-height:39px; align-items:center; gap:7px; padding:0 10px; border:1px solid #c3d0c5; border-radius:8px; background:#fff; color:#6c7c70; cursor:text; }
+.db-search-field:focus-within { border-color:#315d51; box-shadow:0 0 0 3px #315d5124; }
+.db-search-field input { flex:1; width:100%; min-width:0; padding:0; border:0; outline:0; appearance:none; background:transparent; color:#253e30; font-size:12px; }
+.db-search-field input::-webkit-search-cancel-button { display:none; }
 .db-feed-actions .db-search-clear { display:grid; place-items:center; flex:none; width:22px; height:22px; border-radius:50%; color:#587266; font-size:18px; line-height:1; }
 .db-feed-actions .db-search-clear:hover { background:#e6efe8; }
 .db-feed-controls { display:flex; justify-content:space-between; gap:6px; padding:8px 14px; border-bottom:1px solid #d4dfd6; }
@@ -70,7 +72,14 @@
 .db-attachments { display:grid; gap:6px; margin:18px 0; padding:14px; border:1px solid #d9e6dc; border-radius:8px; background:#f8fbf8; font-size:12px; }
 .db-attachments > div { display:flex; align-items:center; gap:10px; }.db-attachments a { color:#276a4b; font-weight:700; }.db-attachments small { color:#76877a; }.db-attachments button { margin-left:auto; color:#a33d31; font-size:11px; }
 .db-attachments button.db-attachment-download { margin-left:0; color:#276a4b; font-weight:700; text-align:left; }
-.db-attach-upload { display:grid; justify-items:start; gap:6px; margin-top:4px; color:#315d51; font-weight:700; }.db-attach-upload input { max-width:100%; font-size:12px; }
+.db-attachments.compact { display:flex; flex-wrap:wrap; margin:8px 0; padding:0; border:0; background:transparent; }
+.db-attachments.compact > div { padding:5px 8px; border:1px solid #d6e1d9; border-radius:6px; background:#f7faf8; }
+.db-attachment-picker { display:grid; justify-items:start; gap:7px; }
+.db-attachment-picker > label { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:0 11px; border:1px solid #c7d7cb; border-radius:7px; background:#f7faf7; color:#315d51; cursor:pointer; font-size:12px; font-weight:800; }
+.db-attachment-picker > label:hover { border-color:#7da18a; background:#eef6f0; }.db-attachment-picker > label input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.db-attachment-picker > small { color:#748379; font-size:11px; }
+.db-pending-files { display:flex; flex-wrap:wrap; gap:6px; }.db-pending-files span { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; background:#e6f0e9; color:#315d51; font-size:11px; font-weight:700; }
+.db-pending-files button { color:#8d493f; font-size:15px; line-height:1; }
 .db-tags span { display:inline-flex; align-items:center; gap:3px; padding:5px 7px; border-radius:4px; background:#e7f0e9; color:#2d674c; font-size:11px; font-weight:700; }
 .db-post-actions { display:flex; align-items:center; gap:9px; margin-top:22px; padding-bottom:15px; border-bottom:1px solid #dce6df; }
 .db-post-actions button,.db-followup-actions button,.db-comment button { min-height:32px; padding:0 8px; border-radius:6px; color:#366d55; }
@@ -118,4 +127,4 @@
 @media(max-width:1100px){.discussion-topbar { flex-wrap:wrap; padding:9px 18px; gap:8px 18px; }.db-topnav { order:4; width:100%; justify-content:center; }.db-workspace { height:calc(100vh - 150px); }.db-course-name { margin-right:auto; }}
 @media(max-width:760px){.db-workspace { display:block; height:auto; }.db-feed { max-height:370px; border-right:0; border-bottom:1px solid #c8d5ca; }.db-detail { min-height:500px; }.db-composer-options { grid-template-columns:1fr; }.db-stat-grid { grid-template-columns:repeat(2,1fr); }}
 @media(max-width:760px){.db-composer-row { grid-template-columns:1fr; gap:4px; }.db-composer-label { text-align:left; }.db-composer-actions { margin-left:0; }}
-@media(max-width:520px){.discussion-topbar .brand-wordmark,.db-course-name { display:none; }.db-topnav { justify-content:flex-start; overflow:auto; }.db-topnav button { padding:0 8px; font-size:12px; }.discussion-topbar-actions { margin-left:auto; }.discussion-topbar-actions .discussion-home-link { font-size:0; }.discussion-topbar-actions .discussion-home-link svg { width:20px; }.db-detail { padding:20px 16px 60px; }.db-feed-actions { flex-wrap:wrap; }.db-feed-actions form { min-height:38px; }.db-manage,.db-stats { padding:24px 15px; }}
+@media(max-width:520px){.discussion-topbar .brand-wordmark,.db-course-name { display:none; }.db-topnav { justify-content:flex-start; overflow:auto; }.db-topnav button { padding:0 8px; font-size:12px; }.discussion-topbar-actions { margin-left:auto; }.discussion-topbar-actions .discussion-home-link { font-size:0; }.discussion-topbar-actions .discussion-home-link svg { width:20px; }.db-detail { padding:20px 16px 60px; }.db-feed-actions { flex-wrap:wrap; }.db-search-field { min-height:38px; }.db-manage,.db-stats { padding:24px 15px; }}
