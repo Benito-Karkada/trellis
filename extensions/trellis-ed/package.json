@@ -1,0 +1,13 @@
+{
+  "name": "trellis-ed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tools/package.js && node --test tests/*.test.js",
+    "package": "node tools/package.js"
+  },
+  "devDependencies": {
+    "linkedom": "0.18.12"
+  }
+}

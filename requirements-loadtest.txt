@@ -1,0 +1,2 @@
+# Optional tooling; keep it out of the Django/runner production images.
+locust==2.47.0

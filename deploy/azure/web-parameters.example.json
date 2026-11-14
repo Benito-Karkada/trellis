@@ -1,0 +1,87 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "subscriptionId": {
+      "value": "75f0c79c-0712-4558-955b-b78bfe006946"
+    },
+    "name": {
+      "value": "cs1301-poc-web-v2"
+    },
+    "location": {
+      "value": "southcentralus"
+    },
+    "environmentId": {
+      "value": "/subscriptions/75f0c79c-0712-4558-955b-b78bfe006946/resourceGroups/CoC-inst-OMSCS-RG/providers/Microsoft.App/managedEnvironments/cs1301-poc-env-v2"
+    },
+    "containers": {
+      "value": [
+        {
+          "name": "cs1301-poc-web-v2",
+          "image": "cs1301pocacr26-d6h2ethkbpfaaqfv.azurecr.io/cs1301-web:poc-v53",
+          "command": [],
+          "args": [],
+          "resources": {
+            "cpu": 0.5,
+            "memory": "1Gi"
+          },
+          "env": [
+            {
+              "name": "POSTGRES_HOST",
+              "value": "cs1301-poc-db27.postgres.database.azure.com"
+            },
+            {
+              "name": "POSTGRES_DB",
+              "value": "cs1301"
+            },
+            {
+              "name": "POSTGRES_PORT",
+              "value": "5432"
+            },
+            {
+              "name": "POSTGRES_USER",
+              "value": "cs1301admin"
+            },
+            {
+              "name": "AZURE_STORAGE_ACCOUNT",
+              "value": "cs1301pocstorage26"
+            },
+            {
+              "name": "AZURE_STORAGE_CONTAINER",
+              "value": "private-media"
+            },
+            {
+              "name": "ALLOWED_HOSTS",
+              "value": "cs1301-poc-web-v2.agreeablewave-32290e77.southcentralus.azurecontainerapps.io,localhost"
+            }
+          ]
+        }
+      ]
+    },
+    "secrets": {
+      "value": {
+        "arrayValue": [
+          {
+            "name": "acr-pull-password",
+            "value": "REPLACE_WITH_THE_PULL_TOKEN_PASSWORD"
+          }
+        ]
+      }
+    },
+    "registries": {
+      "value": [
+        {
+          "server": "cs1301pocacr26-d6h2ethkbpfaaqfv.azurecr.io",
+          "username": "cs1301-poc-web-pull-token",
+          "passwordSecretRef": "acr-pull-password"
+        }
+      ]
+    },
+    "environmentName": {
+      "value": "cs1301-poc-env-v2"
+    },
+    "workspaceId": {
+      "value": "/subscriptions/75f0c79c-0712-4558-955b-b78bfe006946/resourceGroups/CoC-inst-OMSCS-RG/providers/Microsoft.OperationalInsights/workspaces/cs1301-poc-logs"
+    }
+  }
+}

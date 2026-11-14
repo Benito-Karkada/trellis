@@ -1,0 +1,6 @@
+-r ../../backend/requirements.txt
+gunicorn>=23,<24
+whitenoise>=6.9,<7
+django-storages[azure]>=1.14,<2
+
+azure-identity>=1.19,<2
