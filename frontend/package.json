@@ -1,0 +1,30 @@
+{
+  "name": "trellis-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build"
+  },
+  "dependencies": {
+    "@honorlock/integration-sdk-js": "1.5.1",
+    "@monaco-editor/react": "^4.7.0",
+    "lucide-react": "^1.41.0",
+    "monaco-editor": "^0.56.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "vite": "8.3.7"
+  },
+  "overrides": {
+    "dompurify": "3.4.17",
+    "source-map-js": "1.2.2"
+  }
+}

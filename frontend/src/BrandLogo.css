@@ -1,0 +1,11 @@
+.brand-logo { display:inline-flex; align-items:center; gap:9px; flex-shrink:0; vertical-align:middle; }
+.brand-logo .brand-duck { display:block; width:48px; height:46px; flex:none; }
+.brand-logo .brand-wordmark { display:block; width:111px; height:36px; flex:none; }
+.brand-logo-large { gap:12px; }
+.brand-logo-large .brand-duck { width:64px; height:62px; }
+.brand-logo-large .brand-wordmark { width:144px; height:47px; }
+.brand:has(.brand-logo) { line-height:1; }
+@media (max-width:600px) {
+  .brand-logo-large .brand-duck { width:52px; height:50px; }
+  .brand-logo-large .brand-wordmark { width:120px; height:39px; }
+}

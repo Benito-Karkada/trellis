@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <title>Trellis rubber duck</title>
+  <path d="M35 35C25 21 30 7 43 7c12 0 16 9 17 17 8-1 13-1 13 3 0 7-8 11-15 13 5 7 6 15 2 21-5 9-17 13-29 12C10 72 3 60 8 44c1-4 4-6 7-3 5 6 12 6 20 3z" fill="#ffd23f" stroke="#16130f" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M59 24c5 3 10-1 13 2 3 4-6 10-14 11-6 1-8-5-4-8z" fill="#ff861d"/>
+  <circle cx="48" cy="22" r="3" fill="#16130f"/>
+  <path d="M20 52c5 13 20 17 31 5" fill="none" stroke="#16130f" stroke-width="5" stroke-linecap="round"/>
+</svg>
