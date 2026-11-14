@@ -354,35 +354,6 @@
   font-size: 12px;
   margin-top: 6px;
 }
-.viz-input {
-  padding: 14px 18px;
-  border-top: 1px solid #dbe0d6;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-items: center;
-}
-.viz-input label {
-  font-size: 13px;
-  font-weight: 700;
-}
-.viz-input label small {
-  display: block;
-  font-weight: 400;
-  color: #62706a;
-  margin-top: 5px;
-}
-.viz-input textarea {
-  width: 100%;
-  min-height: 60px;
-  padding: 10px;
-  font: 13px monospace;
-  resize: vertical;
-  border: 1px solid #c4cec3;
-  border-radius: 8px;
-  background: #fafbf6;
-  color: #153532;
-}
 .viz-build {
   padding: 14px 18px;
   display: flex;
@@ -571,9 +542,6 @@
   }
   .viz-library {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .viz-input {
-    grid-template-columns: 1fr;
   }
   .viz-replay {
     padding: 15px;

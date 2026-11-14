@@ -60,8 +60,7 @@ export default function CodeVisualizer({
 }) {
   const [exampleId, setExampleId] = useState("for");
   const example = visualizationExamples.find((row) => row.id === exampleId)!;
-  const [source, setSource] = useState(example.source),
-    [stdin, setStdin] = useState("");
+  const [source, setSource] = useState(example.source);
   const [samples, setSamples] = useState<Samples | null>(null),
     [samplePath, setSamplePath] = useState("");
   const [loading, setLoading] = useState(!!activity),
@@ -86,7 +85,7 @@ export default function CodeVisualizer({
     setError("");
     setSamples(null);
     setSamplePath("");
-    setStdin("");
+
     if (!activity) {
       setSource(visualizationExamples[0].source);
       setExampleId("for");
@@ -100,9 +99,6 @@ export default function CodeVisualizer({
         setSamples(data);
         setSamplePath(data.samples[0].path);
         setSource(data.samples[0].source);
-        setStdin(
-          data.cases.find((row) => row.id === data.selected_case)?.stdin || "",
-        );
       })
       .catch((e) => {
         if (version === sequence.current) setError(e.message);
@@ -145,9 +141,6 @@ export default function CodeVisualizer({
         (data.samples.find((row) => row.path === samplePath) || data.samples[0])
           .source,
       );
-      setStdin(
-        data.cases.find((row) => row.id === data.selected_case)?.stdin || "",
-      );
     } catch (e) {
       if (version === sequence.current) setError((e as Error).message);
     } finally {
@@ -177,9 +170,11 @@ export default function CodeVisualizer({
               sample: samplePath,
               revision: samples?.revision,
               case: samples?.selected_case,
-              stdin,
+              stdin:
+                samples?.cases.find((row) => row.id === samples.selected_case)
+                  ?.stdin || "",
             }
-          : { source, stdin },
+          : { source },
       );
       const poll = async () => {
         if (version !== sequence.current) return;
@@ -315,7 +310,6 @@ export default function CodeVisualizer({
                         clearTrace();
                         setExampleId(row.id);
                         setSource(row.source);
-                        setStdin("");
                       }}
                     >
                       <span>{row.title}</span>
@@ -415,20 +409,6 @@ export default function CodeVisualizer({
                     }
                   />
                 </Suspense>
-                <div className="viz-input">
-                  <label htmlFor="viz-stdin">
-                    Program input <small>One value per line, for input()</small>
-                  </label>
-                  <textarea
-                    id="viz-stdin"
-                    rows={2}
-                    placeholder="Optional"
-                    value={stdin}
-                    maxLength={2000}
-                    disabled={busy || !!trace}
-                    onChange={(e) => setStdin(e.target.value)}
-                  />
-                </div>
                 <div className="viz-build">
                   <button
                     className="primary"
@@ -442,10 +422,10 @@ export default function CodeVisualizer({
                         ? "Rebuild trace"
                         : "Visualize code"}
                   </button>
-                  {trace && (
+                  {trace && !activity && (
                     <button onClick={clearTrace}>
                       <SquarePen size={16} />
-                      {activity ? "Change input" : "Edit code"}
+                      Edit code
                     </button>
                   )}
                   <span role="status">

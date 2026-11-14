@@ -2,7 +2,7 @@
 
 ## Student experience
 
-The home screen has separate Course and Code visualizer tabs. The library includes eleven editable Python examples: for loops, while loops, branching, list aliases/copies, dictionary counting, tuple unpacking, functions, classes, binary search, insertion sort, and recursion. Students can also replace an example with their own small program and supply input for `input()`.
+The home screen has separate Course and Code visualizer tabs. The library includes eleven editable Python examples: for loops, while loops, branching, list aliases/copies, dictionary counting, tuple unpacking, functions, classes, binary search, insertion sort, and recursion. Students can replace an example with their own small program and change its values directly in the code editor.
 
 Building a trace runs real CPython in a disposable Docker container. Playback happens entirely in the browser after execution finishes. The highlighted line is the **next** statement to execute; the displayed variables reflect statements already executed. Return snapshots show the return value before the frame leaves the stack. The replay supports step forward/backward, first step, scrubbing, play/pause, and speed selection. Shared references have stable IDs; clicking one highlights the corresponding object. Changed variables and collection entries are highlighted.
 
