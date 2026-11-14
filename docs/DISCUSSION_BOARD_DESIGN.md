@@ -10,7 +10,7 @@ The board is a course-scoped workspace reached by the icon at the end of the **C
 | Public and instructor-only posts | Implemented | Allow private student posts |
 | Anonymous posts and followups | Implemented; classmates-only and everyone modes | Allow anonymity and anonymity from staff separately |
 | Folders and folder navigation | Implemented; teachers create, rename, reorder, and remove | Require a folder when posting |
-| Search, sorting, and filters | Implemented; unread, unresolved, following, bookmarked, reading list, own posts, instructor posts, archive | None |
+| Search, sorting, and filters | Implemented; hybrid exact and semantic search across posts, answers, and followups; unread, unresolved, following, bookmarked, reading list, own posts, instructor posts, archive | None |
 | Pinned posts and reading list | Implemented | Staff curate; reading list can be disabled |
 | Required reading before posting | Implemented; the composer shows unread and required counts | Staff mark public posts required and enable the posting gate |
 | Saved drafts | Implemented on the server, one per course member | None |
@@ -20,8 +20,9 @@ The board is a course-scoped workspace reached by the icon at the end of the **C
 | Followup threads, comments, resolution, likes | Implemented | Staff can resolve and remove any followup |
 | Post likes, bookmark, follow, archive, mark unread, views, direct link | Implemented | Staff can lock, endorse, and remove posts |
 | Post revisions and history | Implemented | Staff can hide public history |
-| Attachments | Implemented for existing posts; private course-scoped downloads, 2 MB limit | Staff can remove attachments |
+| Attachments | Implemented in post and reply composers; private course-scoped downloads, 2 MB limit | Staff can remove attachments |
 | Participation statistics and CSV | Implemented | Staff only; students see their own activity |
+| Repeated issue organizer | Implemented; semantic grouping with High, Medium, and Low priority and supporting post links | Staff only; isolated concerns are excluded |
 | Poll voting and result counts | Implemented | Staff can disable student polls |
 | Code display | Implemented with fenced code blocks | None |
 | Email or push notifications, digest preferences, mentions | Not implemented | Would require notification preferences and delivery infrastructure |
@@ -36,6 +37,6 @@ These are Piazza-style capabilities, not a claim of full Piazza product parity. 
 
 Students see **Q&A**, **Resources**, and **My activity**. They can create permitted post types, ask privately when enabled, use anonymity when enabled, contribute to the shared student answer, follow discussions, and vote in polls. Private posts are visible only to their author and course staff. Their feed and search exclude other students' private posts.
 
-Teachers see **Q&A**, **Resources**, **Statistics**, and **Manage board**. Manage board contains the class-wide posting, anonymity, folder, and reading-list settings, including whether required reading blocks new posts. Post-specific controls remain beside the post: pin, add to reading list, mark required reading, lock, endorse, hide history, and remove. Teachers can see a real name for classmates-only anonymous posts, but not for posts anonymous to everyone. In student-preview mode, the board uses student permissions and hides staff tools.
+Teachers see **Q&A**, **Resources**, **Issues**, **Statistics**, and **Manage board**. The Issues tab groups semantically related student questions when at least two posts or three distinct students support the pattern. Priority considers the number of discussions, affected students, blocking language, open followups, and missing instructor answers. Every issue retains links to its supporting posts. Manage board contains the class-wide posting, anonymity, folder, and reading-list settings, including whether required reading blocks new posts. Post-specific controls remain beside the post: pin, add to reading list, mark required reading, lock, endorse, hide history, and remove. Teachers can see a real name for classmates-only anonymous posts, but not for posts anonymous to everyone. In student-preview mode, the board uses student permissions and hides staff tools.
 
 The **Resources** tab shows notes from the same board. The shared answer areas belong to questions; followups are separate conversations under a post. Staff can mark a followup resolved independently of whether the main question has an answer.

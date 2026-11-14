@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from core.models import (Course, DiscussionReply, DiscussionSearchDocument,
+from core.models import (Course, DiscussionAnswer, DiscussionReply, DiscussionSearchDocument,
     DiscussionThread, Membership)
 from .test_studio import StudioTests
 
@@ -359,3 +359,55 @@ class DiscussionTests(TestCase):
         }).status_code, 200)
         self.assertEqual(self.client.get("/api/discussions/?q=zephyr+sentinel").json()["threads"], [])
         self.assertFalse(DiscussionSearchDocument.objects.filter(content_type="followup", object_id=followup["id"]).exists())
+
+    def test_teacher_issue_organizer_groups_repeated_problems_and_omits_isolated_questions(self):
+        def member(username):
+            user = get_user_model().objects.create_user(username)
+            return Membership.objects.create(course=self.course, user=user, role="student")
+
+        def question(author, title, body, answered=False):
+            thread = DiscussionThread.objects.create(course=self.course, author=author,
+                author_label=author.user.username, title=title, body=body)
+            if answered:
+                staff = Membership.objects.get(course=self.course, user=self.staff)
+                DiscussionAnswer.objects.create(thread=thread, kind="instructor", body="Here is an explanation.",
+                    last_editor=staff, last_editor_label="staff")
+            return thread
+
+        students = [Membership.objects.get(course=self.course, user=self.student)] + [
+            member(f"issue-student-{number}") for number in range(1, 8)]
+        login_posts = [
+            question(students[0], "Cannot sign in", "My password and authentication credentials are rejected."),
+            question(students[1], "Course login is failing", "The sign-in page will not accept my account password."),
+            question(students[2], "Account access problem", "Authentication fails whenever I try to log in."),
+            question(students[3], "Password rejected", "I cannot access the course because login is broken."),
+        ]
+        deadline_posts = [
+            question(students[4], "Submission deadline blocked", "I cannot submit the project before the due date."),
+            question(students[5], "Project upload is failing", "The submission error is blocking my deadline."),
+        ]
+        list_posts = [
+            question(students[6], "Understanding list slicing", "How do sequence slices and indexes work?", answered=True),
+            question(students[7], "List slice explanation", "Please clarify slicing a list by index.", answered=True),
+        ]
+        isolated = question(students[0], "One minor tuple question", "What punctuation creates a tuple?")
+        other_course = Course.objects.create(title="Other issues", term="Pilot")
+        other_member = Membership.objects.create(course=other_course,
+            user=get_user_model().objects.create_user("other-issue-student"), role="student")
+        DiscussionThread.objects.create(course=other_course, author=other_member,
+            author_label="other", title="Cannot sign in", body="My password is rejected.")
+
+        self.assertEqual(self.client.get("/api/discussions/issues/").status_code, 403)
+        self.client.force_login(self.staff)
+        response = self.client.get("/api/discussions/issues/")
+        self.assertEqual(response.status_code, 200)
+        issues = response.json()["issues"]
+        by_priority = {row["priority"]: row for row in issues}
+        self.assertEqual(set(by_priority), {"high", "medium", "low"})
+        self.assertEqual({post["id"] for post in by_priority["high"]["posts"]},
+            {thread.pk for thread in login_posts})
+        self.assertEqual({post["id"] for post in by_priority["medium"]["posts"]},
+            {thread.pk for thread in deadline_posts})
+        self.assertEqual({post["id"] for post in by_priority["low"]["posts"]},
+            {thread.pk for thread in list_posts})
+        self.assertNotIn(isolated.pk, {post["id"] for issue in issues for post in issue["posts"]})

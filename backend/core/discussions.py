@@ -12,6 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .course_context import current_membership
 from .discussion_search import schedule_thread_index, search_discussions
+from .issue_organizer import organize_course_issues
 from .models import (DiscussionAnswer, DiscussionAttachment, DiscussionBoardSettings, DiscussionDraft, DiscussionFolder, DiscussionPostRevision,
     DiscussionPollOption, DiscussionPollVote, DiscussionReply, DiscussionReplyLike,
     DiscussionThread, DiscussionThreadState, Membership)
@@ -593,6 +594,13 @@ def statistics(request):
             .select_related("user").order_by("-posts", "-followups")[:20]
             .values("user__first_name", "user__last_name", "user__username", "role", "posts", "followups"))
     return JsonResponse(result)
+
+
+@require_GET
+def issues(request):
+    member = require_staff(request)
+    rows = organize_course_issues(member.course)
+    return JsonResponse({"issues": rows, "generated_at": timezone.now().isoformat()})
 
 
 @require_GET

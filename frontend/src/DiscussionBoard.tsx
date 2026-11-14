@@ -15,12 +15,19 @@ type Thread = { id: number; title: string; body: string; editor_mode: "formatted
 type Reply = { id: number; parent_id: number | null; body: string; author: string; author_is_staff: boolean; mine: boolean; resolved: boolean; created_at: string; like_count: number; liked: boolean; attachments: Attachment[] };
 type Answer = { body: string; author: string; endorsed: boolean; updated_at: string };
 type Detail = { thread: Thread; answers: Partial<Record<"student" | "instructor", Answer>>; replies: Reply[]; has_more_replies: boolean; poll_options: { id: number; label: string; votes_count: number }[]; my_vote: number | null; attachments: Attachment[] };
-type Tab = "qa" | "resources" | "statistics" | "manage";
+type IssuePriority = "high" | "medium" | "low";
+type BoardIssue = { id: number; title: string; summary: string; priority: IssuePriority; student_count: number; post_count: number; open_count: number; posts: { id: number; title: string; visibility: "public" | "private"; created_at: string; open: boolean; folders: string[] }[] };
+type Tab = "qa" | "resources" | "issues" | "statistics" | "manage";
 type Draft = { title: string; body: string; editor_mode: Thread["editor_mode"]; kind: Thread["kind"]; visibility: Thread["visibility"]; anonymous: string; folder_ids: number[]; options: string[]; updated_at?: string };
 const date = (iso: string) => new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(iso));
 const initials = (name: string) => name === "Anonymous" ? "?" : name.split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase()).join("");
 const discussionLink = (post: number, followup: number | null = null) => `${location.origin}${location.pathname}${routeHref({ page: "discussions", post, followup })}`;
 const feedGroup = (thread: Thread) => thread.pinned ? "Pinned" : thread.reading_list ? "Reading list" : "All posts";
+const issueLanes: { id: IssuePriority; label: string; description: string }[] = [
+  { id: "high", label: "High priority", description: "Widespread or blocking" },
+  { id: "medium", label: "Medium priority", description: "Repeated and needs attention" },
+  { id: "low", label: "Low priority", description: "Recurring but contained" },
+];
 
 function InlineText({ text }: { text: string }) {
   return <>{text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g).map((part, index) => {
@@ -95,6 +102,9 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   const [followupAnonymous, setFollowupAnonymous] = useState("none");
   const [followupFiles, setFollowupFiles] = useState<File[]>([]);
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
+  const [issues, setIssues] = useState<BoardIssue[] | null>(null);
+  const [issuesGeneratedAt, setIssuesGeneratedAt] = useState("");
+  const [issuesLoading, setIssuesLoading] = useState(false);
   const [stats, setStats] = useState<Record<string, any> | null>(null);
   const [folderName, setFolderName] = useState("");
   const [history, setHistory] = useState<{ version: number; title: string; body: string; editor_mode: Thread["editor_mode"]; editor_label: string; created_at: string }[] | null>(null);
@@ -149,6 +159,14 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
     if (tab !== "statistics") return;
     void api("discussions/statistics/").then(setStats).catch((failure: Error) => setError(failure.message));
   }, [tab]);
+
+  const reloadIssues = useCallback(async () => {
+    setIssuesLoading(true);
+    try { const data = await api("discussions/issues/"); setIssues(data.issues); setIssuesGeneratedAt(data.generated_at); }
+    catch (failure) { setError((failure as Error).message); }
+    finally { setIssuesLoading(false); }
+  }, []);
+  useEffect(() => { if (tab === "issues" && staff) void reloadIssues(); }, [tab, staff, reloadIssues]);
 
   function openComposer(thread?: Thread, draft?: Draft) {
     setError(""); setNotice(""); setComposing(true); setEditing(!!thread);
@@ -252,7 +270,7 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
 
   const current = detail?.thread;
   const roots = detail?.replies.filter(row => row.parent_id === null) || [];
-  const boardTabs: { id: Tab; label: string }[] = [{ id: "qa", label: "Q&A" }, { id: "resources", label: "Resources" }, { id: "statistics", label: staff ? "Statistics" : "My activity" }, ...(staff ? [{ id: "manage" as Tab, label: "Manage board" }] : [])];
+  const boardTabs: { id: Tab; label: string }[] = [{ id: "qa", label: "Q&A" }, { id: "resources", label: "Resources" }, ...(staff ? [{ id: "issues" as Tab, label: "Issues" }] : []), { id: "statistics", label: staff ? "Statistics" : "My activity" }, ...(staff ? [{ id: "manage" as Tab, label: "Manage board" }] : [])];
   const canPost = staff || !!settings?.allow_student_posts && (tab !== "resources" || !!settings?.allow_student_notes);
   const postingBlocked = !staff && !!settings?.reading_list_enabled && !!settings?.require_reading_before_posting && reading.required > 0;
   const attachmentList = (items: Attachment[], compact = false) => items.length > 0 && <div className={`db-attachments ${compact ? "compact" : ""}`}>
@@ -323,7 +341,10 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
           </section>
         </> : <div className="db-placeholder"><MessageCircle size={38} /><h2>Choose a post</h2><p>Read a question, share an answer, or start a new post.</p></div>}
       </main>
-    </div> : tab === "manage" && staff && settings ? <main className="db-manage"><div><span className="db-eyebrow">INSTRUCTOR TOOLS</span><h1>Manage discussion board</h1><p>Choose how your class can ask questions and organize posts.</p></div><section><h2>Posting and participation</h2>{([
+    </div> : tab === "issues" && staff ? <main className="db-issues">
+      <header className="db-issues-head"><div><span className="db-eyebrow">REPEATED STUDENT SIGNALS</span><h1>Issue organizer</h1><p>Related questions are grouped by meaning and ranked by how many students are affected, how often the issue appears, and whether it still needs an answer.</p></div><aside><strong>What appears here</strong><span>At least 2 related posts or 3 affected students</span><button disabled={issuesLoading} onClick={() => void reloadIssues()}>{issuesLoading ? "Updating…" : "Refresh issues"}</button>{issuesGeneratedAt && <small>Updated {date(issuesGeneratedAt)}</small>}</aside></header>
+      {issuesLoading && issues === null ? <p className="db-issues-loading">Organizing repeated issues…</p> : issues?.length === 0 ? <div className="db-issues-empty"><Check size={26} /><h2>No repeated issues need attention</h2><p>Isolated questions stay in Q&amp;A and will appear here only when a pattern develops.</p></div> : <div className="db-issue-lanes">{issueLanes.map(lane => { const rows = (issues || []).filter(issue => issue.priority === lane.id); return <section className={`db-issue-lane ${lane.id}`} key={lane.id}><header><span className="db-priority-mark" /><div><h2>{lane.label}</h2><p>{lane.description}</p></div><b>{rows.length}</b></header>{rows.length === 0 ? <p className="db-lane-empty">No {lane.id}-priority patterns.</p> : rows.map(issue => <article className="db-issue-card" key={issue.id}><div className="db-issue-card-head"><div><span>{issue.student_count} student{issue.student_count === 1 ? "" : "s"}</span><span>{issue.post_count} post{issue.post_count === 1 ? "" : "s"}</span>{issue.open_count > 0 && <span>{issue.open_count} need attention</span>}</div><h3>{issue.title}</h3><p>{issue.summary}</p></div><div className="db-issue-posts"><strong>Supporting posts</strong>{issue.posts.map(post => <button key={post.id} onClick={() => { setTab("qa"); setComposing(false); onSelectPost(post.id); }}><span><b>{post.title}</b><small>{post.folders.length ? post.folders.join(" · ") : `Post #${post.id}`}{post.visibility === "private" ? " · Private" : ""}</small></span><em className={post.open ? "open" : "answered"}>{post.open ? "Needs attention" : "Instructor answered"}</em></button>)}</div></article>)}</section>; })}</div>}
+    </main> : tab === "manage" && staff && settings ? <main className="db-manage"><div><span className="db-eyebrow">INSTRUCTOR TOOLS</span><h1>Manage discussion board</h1><p>Choose how your class can ask questions and organize posts.</p></div><section><h2>Posting and participation</h2>{([
       ["allow_student_posts", "Students can create posts"], ["allow_student_notes", "Students can publish notes"], ["allow_student_polls", "Students can create polls"], ["allow_anonymous", "Anonymous to classmates"], ["allow_anonymous_to_staff", "Anonymous to instructors"], ["allow_private", "Students can ask instructors privately"], ["allow_student_answers", "Students can edit the shared answer"], ["require_folder", "Require a folder for each post"], ["reading_list_enabled", "Enable instructor reading list"], ["require_reading_before_posting", "Students must read required items before posting"],
     ] as [keyof Settings, string][]).map(([key, label]) => <label className="db-setting" key={key}><span>{label}</span><input type="checkbox" checked={settings[key]} onChange={event => void saveSetting(key, event.target.checked)} /></label>)}</section><section><h2>Folders</h2><p>Folders appear across the top of the Q&A feed.</p><form onSubmit={event => { event.preventDefault(); void manageFolder("create", { name: folderName }); }}><input aria-label="New folder name" maxLength={60} value={folderName} onChange={event => setFolderName(event.target.value)} placeholder="New folder name" /><button className="db-primary" disabled={!folderName.trim()}>Add folder</button></form>{folders.map((row, index) => <div className="db-folder-row" key={row.id}><span>{row.name}</span><button title="Move up" disabled={index === 0} onClick={() => { const ids = folders.map(item => item.id); [ids[index - 1], ids[index]] = [ids[index], ids[index - 1]]; void manageFolder("reorder", { ids }); }}><ChevronUp size={17} /></button><button title="Move down" disabled={index === folders.length - 1} onClick={() => { const ids = folders.map(item => item.id); [ids[index + 1], ids[index]] = [ids[index], ids[index + 1]]; void manageFolder("reorder", { ids }); }}><ChevronDown size={17} /></button><button onClick={() => { const name = window.prompt("Rename folder", row.name); if (name?.trim()) void manageFolder("rename", { id: row.id, name }); }}>Rename</button><button className="danger" onClick={() => { if (window.confirm(`Delete ${row.name}? Posts will remain, without this folder.`)) void manageFolder("delete", { id: row.id }); }}>Remove</button></div>)}</section></main> : <main className="db-stats"><span className="db-eyebrow">{staff ? "CLASS ACTIVITY" : "YOUR ACTIVITY"}</span><h1>{staff ? "Discussion statistics" : "My activity"}</h1>{staff && <button className="db-export" onClick={async () => { try { await download("discussions/statistics/export/", "discussion-statistics.csv"); } catch (failure) { setError((failure as Error).message); } }}>Export CSV</button>}{stats ? <><div className="db-stat-grid">{(["posts", "questions", "notes", "polls", "answers", "followups", "views"] as const).map(key => <article key={key}><strong>{stats[key] ?? 0}</strong><span>{key}</span></article>)}</div>{staff && <section><h2>Participation</h2><div className="db-participants">{(stats.contributors || []).map((row: any, index: number) => <div key={index}><span>{[row.user__first_name, row.user__last_name].filter(Boolean).join(" ") || row.user__username} <small>{row.role}</small></span><span>{row.posts} posts · {row.followups} followups</span></div>)}</div></section>}</> : <p>Loading activity…</p>}</main>}
     {answerKind && detail && <div className="db-modal-backdrop" role="presentation"><form className="db-answer-dialog" role="dialog" aria-modal="true" aria-label={`Edit ${answerKind} answer`} onSubmit={submitAnswer}><h2>{answerKind === "student" ? "Students’ answer" : "Instructors’ answer"}</h2><p>This shared answer can be improved as the discussion develops.</p><textarea autoFocus rows={10} maxLength={10000} required value={answerBody} onChange={event => setAnswerBody(event.target.value)} /><div><button type="button" onClick={() => setAnswerKind(null)}>Cancel</button><button className="db-primary" disabled={busy || !answerBody.trim()}>Save answer</button></div></form></div>}
