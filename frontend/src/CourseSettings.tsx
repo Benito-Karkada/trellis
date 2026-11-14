@@ -24,6 +24,7 @@ import CourseIdentity from "./CourseIdentity";
 import {EdDiscussionSettings} from "./EdDiscussion";
 import ApiAccess from "./ApiAccess";
 import SubmissionReview from "./SubmissionReview";
+import DiscussionSelect from "./DiscussionSelect";
 
 type Member = {
   id: number;
@@ -380,14 +381,8 @@ export default function CourseSettings({
                 </div>
                 <label>
                   Course role
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                  >
-                    <option value="student">Student</option>
-                    <option value="instructor">Instructor</option>
-                    <option value="ta">TA</option>
-                  </select>
+                  <DiscussionSelect label="Course role" value={role} onChange={setRole}
+                    options={[{value:"student",label:"Student"},{value:"instructor",label:"Instructor"},{value:"ta",label:"TA"}]} />
                 </label>
                 <button className="primary" disabled={busy}>
                   <Plus size={16} />
@@ -400,15 +395,8 @@ export default function CourseSettings({
                   <strong>Upload a CSV</strong>
                   <p>Use an email column; a name column is optional.</p>
                 </div>
-                <select
-                  aria-label="Role for CSV import"
-                  value={csvRole}
-                  onChange={(e) => setCsvRole(e.target.value)}
-                >
-                  <option value="student">Students</option>
-                  <option value="instructor">Instructors</option>
-                  <option value="ta">TAs</option>
-                </select>
+                <DiscussionSelect label="Role for CSV import" value={csvRole} onChange={setCsvRole}
+                  options={[{value:"student",label:"Students"},{value:"instructor",label:"Instructors"},{value:"ta",label:"TAs"}]} />
                 <input
                   ref={file}
                   hidden
@@ -471,17 +459,8 @@ export default function CourseSettings({
               </div>
               <label>
                 Programming quiz
-                <select
-                  value={activity}
-                  onChange={(e) => chooseActivity(e.target.value)}
-                >
-                  <option value="">Coursewide default</option>
-                  {activities.map((quiz) => (
-                    <option value={quiz.id} key={quiz.id}>
-                      {quiz.title}
-                    </option>
-                  ))}
-                </select>
+                <DiscussionSelect label="Programming quiz" value={activity} onChange={chooseActivity}
+                  options={[{value:"",label:"Coursewide default"},...activities.map(quiz => ({value:String(quiz.id),label:quiz.title}))]} />
               </label>
             </section>
             <section className="settings-card batch-card">

@@ -24,6 +24,7 @@ import {
 import { api } from "./api";
 import LogoutButton from "./LogoutButton";
 import UnitOverview from "./UnitOverview";
+import DiscussionSelect from "./DiscussionSelect";
 import { routeHref } from "./navigation";
 
 type Activity = {
@@ -61,6 +62,7 @@ export default function CourseHome({
   onOpen,
   onSettings,
   onGradebook,
+  onDiscussions,
   onRefresh,
   onSignOut,
   onVisualize,
@@ -76,6 +78,7 @@ export default function CourseHome({
   onOpen: (lesson: number, activity: number | null) => void;
   onSettings: () => void;
   onGradebook: () => void;
+  onDiscussions: () => void;
   onRefresh: () => Promise<unknown>;
   onSignOut: () => void;
   onVisualize: () => void;
@@ -186,7 +189,7 @@ export default function CourseHome({
   return <CourseHomeView title={title} example={example} code={code} term={term} onCourses={onCourses} lessons={courseLessons} quizzes={quizzes}
     canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
     onOpen={open} onGradebook={() => leave(onGradebook)} onSettings={() => leave(onSettings)}
-    onVisualize={onVisualize} onEditStructure={beginEditing} onSignOut={onSignOut} />;
+    onVisualize={onVisualize} onDiscussions={() => leave(onDiscussions)} onEditStructure={beginEditing} onSignOut={onSignOut} />;
 }
   return (
     <div className="home-shell">
@@ -511,22 +514,9 @@ function HomeGroup({
                       }
                       placeholder="New part title"
                     />
-                    <select
-                      aria-label="New part type"
-                      value={partKinds[lesson.id] || "reading"}
-                      onChange={(e) =>
-                        setPartKinds({
-                          ...partKinds,
-                          [lesson.id]: e.target.value,
-                        })
-                      }
-                    >
-                      {PART_KINDS.map((k) => (
-                        <option value={k.value} key={k.value}>
-                          {k.label}
-                        </option>
-                      ))}
-                    </select>
+                    <DiscussionSelect label="New part type" value={partKinds[lesson.id] || "reading"}
+                      options={PART_KINDS.map(k => ({ value:k.value, label:k.label }))}
+                      onChange={value => setPartKinds({ ...partKinds, [lesson.id]: value })} />
                     <button
                       disabled={busy || !partTitles[lesson.id]?.trim()}
                       onClick={async () => {

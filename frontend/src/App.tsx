@@ -43,6 +43,8 @@ import CourseHome from "./CourseHome";
 import CourseLibrary from "./CourseLibrary";
 import ContentBuilder from "./ContentBuilder";
 import Gradebook from "./Gradebook";
+import DiscussionBoard from "./DiscussionBoard";
+import DiscussionSelect from "./DiscussionSelect";
 import { api } from "./api";
 const CodeVisualizer = lazy(() => import("./CodeVisualizer"));
 const EditorPane = lazy(() => import("./EditorPane"));
@@ -232,10 +234,11 @@ function Rich({
 }
 export default function App() {
   const { route, update: updateRoute, guard: navigationGuard } = useNavigation();
-  const { page, courseId, lessonId, active, category, mode } = route;
+  const { page, courseId, lessonId, active, post, category, mode } = route;
   const setPage = (page: typeof route.page) => updateRoute({page});
   const setLessonId = (lessonId: number | null) => updateRoute({lessonId});
   const setActive = (active: number | null) => updateRoute({active});
+  const setPost = (post: number | null) => updateRoute({post, followup:null});
   const setCategory = (category: string) => updateRoute({category});
   const setMode = (mode: typeof route.mode) => updateRoute({mode});
   const [booting, setBooting] = useState(true);
@@ -1029,6 +1032,8 @@ export default function App() {
     return <Gradebook courseLabel={outline?.code || outline?.title || "Course"} theme={theme} onBack={() => setPage("home")} />;
   if (page === "visualizer")
     return <Suspense fallback={<div className="startup-shell" role="status">Opening code visualizer…</div>}><CodeVisualizer activity={active} onBack={()=>setPage(active && lessonId?"course":"home")}/></Suspense>;
+  if (page === "discussions" && outline)
+    return <DiscussionBoard course={outline.title} selectedPost={post} onSelectPost={setPost} onSignOut={signOut} onBack={() => setPage("home")} />;
   if (page === "home" && outline)
     return (
       <CourseHome
@@ -1045,6 +1050,7 @@ export default function App() {
         onRefresh={refreshOutline}
         onSettings={() => setPage("settings")}
         onGradebook={() => setPage("gradebook")}
+        onDiscussions={() => setPage("discussions")}
         onOpen={(nextLesson, nextActivity) => {
           const next = outline.lessons.find((row) => row.id === nextLesson);
           setLessonId(nextLesson);
@@ -1082,35 +1088,12 @@ export default function App() {
           <button className="sidebar-courses" disabled={busy||examActive} onClick={()=>{if(leave())updateRoute({page:"courses",courseId:null});}}>All courses</button>
           <label className="lesson-picker">
             Lesson
-            <select
-              aria-label="Select lesson"
-              value={lessonId || ""}
-              disabled={busy}
-              onChange={(e) => selectLesson(Number(e.target.value))}
-            >
-              <optgroup label="Course lessons">
-                {outline?.lessons
-                  .filter((l) => l.metadata?.kind !== "programming_quiz")
-                  .map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.title}
-                    </option>
-                  ))}
-              </optgroup>
-              {outline?.lessons.some(
-                (l) => l.metadata?.kind === "programming_quiz",
-              ) && (
-                <optgroup label="Programming quizzes">
-                  {outline.lessons
-                    .filter((l) => l.metadata?.kind === "programming_quiz")
-                    .map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.title}
-                      </option>
-                    ))}
-                </optgroup>
-              )}
-            </select>
+            <DiscussionSelect label="Select lesson" value={String(lessonId || "")} disabled={busy}
+              onChange={value => selectLesson(Number(value))}
+              options={outline ? [
+                ...outline.lessons.filter(l => l.metadata?.kind !== "programming_quiz").map(l => ({value:String(l.id),label:l.title,group:"Course lessons"})),
+                ...outline.lessons.filter(l => l.metadata?.kind === "programming_quiz").map(l => ({value:String(l.id),label:l.title,group:"Programming quizzes"})),
+              ] : []} />
           </label>
           <nav className="parts-navigation" aria-label="Assignment parts">
             {groups.map((group) => (

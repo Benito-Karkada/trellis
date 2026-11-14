@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api } from "./api";
 import BrandLogo from "./BrandLogo";
+import DiscussionSelect from "./DiscussionSelect";
 const EditorPane = lazy(() => import("./EditorPane"));
 type Lesson = {
   id: number;
@@ -203,16 +204,9 @@ export default function Gradebook({
           {view === "assignments" && (
             <label>
               Assignment
-              <select
-                value={assignment}
-                onChange={(e) => setAssignment(e.target.value)}
-              >
-                {lessons.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.title}
-                  </option>
-                ))}
-              </select>
+              <DiscussionSelect label="Assignment" value={assignment}
+                options={lessons.map(l => ({ value:String(l.id), label:l.title }))}
+                onChange={setAssignment} />
             </label>
           )}
           <label>
@@ -444,28 +438,18 @@ function GradeDetail({
         <aside className="review-activity-sidebar">
           <label>
             Assignment
-            <select
-              value={lessonFilter}
-              disabled={busy}
-              onChange={(e) => {
-                const lesson = e.target.value;
+            <DiscussionSelect label="Assignment" value={lessonFilter} disabled={busy}
+              onChange={(lesson) => {
                 setLessonFilter(lesson);
                 setPartQuery("");
                 setAttempt("");
                 setActivityId(detail.activities.find(part => !lesson || String(part.lesson_id) === lesson)?.id || 0);
               }}
-            >
-              {detail.lesson.id === null && <option value="">Entire course</option>}
-              {[
+              options={[...(detail.lesson.id === null ? [{ value:"", label:"Entire course" }] : []), ...[
                 ...new Map(
                   detail.activities.map((a) => [a.lesson_id, a.lesson_title]),
                 ).entries(),
-              ].map(([id, title]) => (
-                <option key={id} value={id}>
-                  {title}
-                </option>
-              ))}
-            </select>
+              ].map(([id, title]) => ({ value:String(id), label:title }))]} />
           </label>
           <label>
             Find a part
@@ -511,14 +495,9 @@ function GradeDetail({
                 </span>
               </div>
               <label className="submission-selector">Submission history
-                <select aria-label="Submission history" value={attempt} disabled={busy || workLoading}
-                  onChange={e=>setAttempt(e.target.value)}>
-                  <option value="">Current workspace / latest answers</option>
-                  {work.history?.map(item=><option key={item.id} value={item.id}>
-                    Submission {item.number} · {new Date(item.submitted_at).toLocaleString()} · {item.status}
-                    {item.score != null ? ` · ${item.score} / ${item.maximum}` : ""}{item.practice ? " · Practice" : ""}
-                  </option>)}
-                </select>
+                <DiscussionSelect label="Submission history" value={attempt} disabled={busy || workLoading}
+                  onChange={setAttempt} options={[{value:"",label:"Current workspace / latest answers"},
+                    ...(work.history || []).map(item => ({value:item.id,label:`Submission ${item.number} · ${new Date(item.submitted_at).toLocaleString()} · ${item.status}${item.score != null ? ` · ${item.score} / ${item.maximum}` : ""}${item.practice ? " · Practice" : ""}`}))]} />
               </label>
               {attempt && !workLoading && <p className="review-note">Submitted {activity.submitted_at ? new Date(activity.submitted_at).toLocaleString() : ""} · Revision {activity.revision}. Edits below affect this review copy only.</p>}
               {workLoading ? null : selected ? (

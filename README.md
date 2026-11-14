@@ -6,6 +6,8 @@
 
 A local course-building and learning platform. Instructors create lessons and exercises; students read, practice, write Python, and receive feedback in one workspace. The included CS 1301 course has 26 sections and 1,064 parts, including readings, videos, native questions, coding exercises, sandboxes, and all six programming quizzes.
 
+Course members can open discussions from the icon beside Course units on the course home.
+
 ## Start locally
 
 Install and start **Docker Desktop**. Install **Python 3.12 or newer** on your computer, then:

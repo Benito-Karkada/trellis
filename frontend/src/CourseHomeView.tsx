@@ -16,7 +16,7 @@ type Resume = { lesson_id: number; activity_id: number; lesson_title: string; ac
 export default function CourseHomeView({
   title, code, term, example, onCourses, lessons, quizzes, canManage, resume, busy, error, notice,
   upcoming, onToggleUpcoming,
-  onVisualize, onOpen, onGradebook, onSettings, onEditStructure, onSignOut,
+  onVisualize, onOpen, onGradebook, onSettings, onDiscussions, onEditStructure, onSignOut,
 }: {
   title: string;
   example: boolean;
@@ -36,6 +36,7 @@ export default function CourseHomeView({
   onOpen: (lesson: number, activity: number | null) => void;
   onGradebook: () => void;
   onSettings: () => void;
+  onDiscussions: () => void;
   onEditStructure: () => void;
   onSignOut: () => void;
 }) {
@@ -85,7 +86,7 @@ export default function CourseHomeView({
         </aside>
         <main className="ch-pages">
           {!lessons.length&&!quizzes.length&&<section className="library-empty"><BookOpen size={34}/><h2>Your course starts here</h2><p>{canManage?"Add your first section, then build lessons, videos, questions, and coding exercises.":"Your instructor is preparing this course. Check back for new content."}</p>{canManage&&<button className="primary" onClick={onEditStructure}>Add course content</button>}</section>}
-          <UnitOverview example={example} lessons={lessons} quizzes={quizzes} onOpen={onOpen} />
+          <UnitOverview lessons={lessons} quizzes={quizzes} onOpen={onOpen} onDiscussions={onDiscussions} />
         </main>
       </div>
     </div>

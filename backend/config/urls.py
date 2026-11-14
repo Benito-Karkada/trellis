@@ -81,7 +81,6 @@ urlpatterns += [path("api/settings/ed-discussion/", ed_discussion.settings_data)
 from core import honorlock
 urlpatterns += [path("api/settings/quizzes/<int:pk>/honorlock/",honorlock.save_settings)]
 
-
 from core import visualization
 urlpatterns += [path("api/visualizations/", visualization.start),
     path("api/visualizations/<uuid:pk>/", visualization.status),
@@ -93,3 +92,28 @@ urlpatterns += [path('api/courses/', courses.collection),
     path('api/settings/canvas/assignments/', canvas_assignments.overview),
     path('api/settings/canvas/configure/', canvas_assignments.configure),
     path('api/settings/canvas/assignments/<int:pk>/publish/', canvas_assignments.publish_assignment)]
+
+from core import discussions
+urlpatterns += [path("api/discussions/", discussions.list_threads),
+    path("api/discussions/meta/", discussions.meta),
+    path("api/discussions/draft/", discussions.get_draft),
+    path("api/discussions/draft/save/", discussions.save_draft),
+    path("api/discussions/draft/discard/", discussions.discard_draft),
+    path("api/discussions/settings/", discussions.save_settings),
+    path("api/discussions/folders/", discussions.folders),
+    path("api/discussions/statistics/", discussions.statistics),
+    path("api/discussions/statistics/export/", discussions.statistics_export),
+    path("api/discussions/new/", discussions.create_thread),
+    path("api/discussions/<int:pk>/", discussions.read_thread),
+    path("api/discussions/<int:pk>/replies/", discussions.create_reply),
+    path("api/discussions/<int:pk>/answer/", discussions.save_answer),
+    path("api/discussions/<int:pk>/answer/endorse/", discussions.endorse_answer),
+    path("api/discussions/<int:pk>/action/", discussions.thread_action),
+    path("api/discussions/<int:pk>/edit/", discussions.edit_thread),
+    path("api/discussions/<int:pk>/history/", discussions.history),
+    path("api/discussions/<int:pk>/delete/", discussions.delete_thread),
+    path("api/discussions/<int:pk>/vote/", discussions.vote),
+    path("api/discussions/<int:pk>/attachments/", discussions.upload_attachment),
+    path("api/discussions/attachments/<int:pk>/", discussions.download_attachment),
+    path("api/discussions/attachments/<int:pk>/remove/", discussions.remove_attachment),
+    path("api/discussions/replies/<int:pk>/action/", discussions.reply_action)]

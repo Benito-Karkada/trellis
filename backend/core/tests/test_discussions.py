@@ -1,0 +1,232 @@
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+
+from core.models import Course, DiscussionReply, DiscussionThread, Membership
+from .test_studio import StudioTests
+
+
+class DiscussionTests(TestCase):
+    def setUp(self):
+        StudioTests.setUp(self)
+        self.course = self.activity.lesson.course
+
+    def post(self, path, data):
+        return self.client.post(path, data, content_type="application/json")
+
+    def test_members_can_post_and_reply(self):
+        created = self.post("/api/discussions/new/", {"title": " Variables ", "body": " How do they work? "})
+        self.assertEqual(created.status_code, 201)
+        thread = created.json()["thread"]
+        self.assertEqual((thread["title"], thread["body"], thread["reply_count"]),
+                         ("Variables", "How do they work?", 0))
+        self.client.force_login(self.staff)
+        reply = self.post(f"/api/discussions/{thread['id']}/replies/", {"body": "Use an assignment."})
+        self.assertEqual(reply.status_code, 201)
+        self.assertEqual(self.client.get("/api/discussions/").json()["threads"][0]["reply_count"], 1)
+        self.assertEqual(self.client.get(f"/api/discussions/{thread['id']}/").json()["replies"][0]["author"], "staff")
+
+    def test_other_course_and_inactive_members_cannot_read_or_reply(self):
+        thread = DiscussionThread.objects.create(course=self.course,
+            author=Membership.objects.get(course=self.course, user=self.staff), title="Private", body="Course only")
+        other_course = Course.objects.create(title="Other", term="Pilot")
+        other_user = get_user_model().objects.create_user("other")
+        Membership.objects.create(course=other_course, user=other_user, role="student")
+        self.client.force_login(other_user)
+        self.assertEqual(self.client.get("/api/discussions/").json()["threads"], [])
+        self.assertEqual(self.client.get(f"/api/discussions/{thread.pk}/").status_code, 404)
+        self.assertEqual(self.post(f"/api/discussions/{thread.pk}/replies/", {"body": "No"}).status_code, 404)
+        self.client.force_login(self.student)
+        Membership.objects.filter(course=self.course, user=self.student).update(active=False)
+        self.assertEqual(self.client.get("/api/discussions/").status_code, 403)
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "No", "body": "No"}).status_code, 403)
+
+    def test_explicit_course_context_keeps_boards_separate(self):
+        first = self.post("/api/discussions/new/", {"title": "First course", "body": "Here"})
+        self.assertEqual(first.status_code, 201)
+        another = Course.objects.create(title="Another course", term="Pilot")
+        Membership.objects.create(course=another, user=self.student, role="student")
+        selected = {"HTTP_X_TRELLIS_COURSE": str(another.pk)}
+        second = self.client.post("/api/discussions/new/", {"title": "Second course", "body": "Here"},
+            content_type="application/json", **selected)
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual([row["title"] for row in self.client.get("/api/discussions/", **selected).json()["threads"]], ["Second course"])
+        self.assertEqual(self.client.get(f'/api/discussions/{first.json()["thread"]["id"]}/', **selected).status_code, 404)
+
+    def test_invalid_posts_do_not_create_content(self):
+        for data in [{"title": "", "body": "x"}, {"title": "x", "body": "  "},
+                     {"title": "x" * 161, "body": "x"}, {"title": "x", "body": "x", "course": 9}]:
+            with self.subTest(data=data):
+                self.assertEqual(self.post("/api/discussions/new/", data).status_code, 400)
+        self.assertEqual(DiscussionThread.objects.count(), 0)
+        thread = DiscussionThread.objects.create(course=self.course,
+            author=Membership.objects.get(course=self.course, user=self.staff), title="Hello", body="World")
+        self.assertEqual(self.post(f"/api/discussions/{thread.pk}/replies/", {"body": " "}).status_code, 400)
+        self.assertEqual(DiscussionReply.objects.count(), 0)
+
+    def test_member_removal_keeps_post_and_attribution(self):
+        created = self.post("/api/discussions/new/", {"title": "Question", "body": "Hello"}).json()["thread"]
+        member = Membership.objects.get(course=self.course, user=self.student)
+        member.delete()
+        self.client.force_login(self.staff)
+        thread = self.client.get(f"/api/discussions/{created['id']}/").json()["thread"]
+        self.assertEqual(thread["author"], "student")
+        self.assertIsNone(DiscussionThread.objects.get(pk=created["id"]).author)
+
+    def test_recent_posts_are_paginated(self):
+        member = Membership.objects.get(course=self.course, user=self.student)
+        for number in range(32):
+            DiscussionThread.objects.create(course=self.course, author=member,
+                title=f"Post {number}", body="Message")
+        first = self.client.get("/api/discussions/").json()
+        self.assertEqual(len(first["threads"]), 30)
+        self.assertTrue(first["has_more"])
+        second = self.client.get("/api/discussions/?offset=30").json()
+        self.assertEqual(len(second["threads"]), 2)
+        self.assertFalse(second["has_more"])
+
+    def test_staff_settings_and_folders_control_student_posts(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.post("/api/discussions/settings/", {"require_folder": True, "allow_student_polls": False}).status_code, 200)
+        folder = self.post("/api/discussions/folders/", {"action": "create", "name": "Assignments"}).json()["folders"][0]
+        self.client.force_login(self.student)
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Help", "body": "Question"}).status_code, 400)
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Poll", "body": "Vote", "kind": "poll", "folder_ids": [folder["id"]], "options": ["A", "B"]}).status_code, 403)
+        created = self.post("/api/discussions/new/", {"title": "Help", "body": "Question", "folder_ids": [folder["id"]]})
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json()["thread"]["folders"][0]["name"], "Assignments")
+        self.assertEqual(len(self.client.get(f'/api/discussions/?folder={folder["id"]}').json()["threads"]), 1)
+        self.assertEqual(self.post("/api/discussions/settings/", {"allow_student_posts": False}).status_code, 403)
+
+    def test_private_and_anonymous_posts_are_projected_by_role(self):
+        other = get_user_model().objects.create_user("classmate")
+        Membership.objects.create(course=self.course, user=other, role="student")
+        private = self.post("/api/discussions/new/", {"title": "Private", "body": "Question", "visibility": "private"}).json()["thread"]
+        anonymous = self.post("/api/discussions/new/", {"title": "Anonymous", "body": "Question", "anonymous": "classmates"}).json()["thread"]
+        self.client.force_login(other)
+        rows = self.client.get("/api/discussions/").json()["threads"]
+        self.assertEqual([row["title"] for row in rows], ["Anonymous"])
+        self.assertEqual(rows[0]["author"], "Anonymous")
+        self.assertEqual(self.client.get(f'/api/discussions/{private["id"]}/').status_code, 404)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(f'/api/discussions/{anonymous["id"]}/').json()["thread"]["author"], "student")
+        self.assertEqual(self.client.get(f'/api/discussions/{private["id"]}/').status_code, 200)
+
+    def test_answers_followups_reactions_and_moderation(self):
+        thread = self.post("/api/discussions/new/", {"title": "Question", "body": "Why?"}).json()["thread"]
+        pk = thread["id"]
+        self.assertEqual(self.post(f"/api/discussions/{pk}/answer/", {"kind": "instructor", "body": "No"}).status_code, 403)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/answer/", {"kind": "student", "body": "Because"}).status_code, 200)
+        followup = self.post(f"/api/discussions/{pk}/replies/", {"body": "Another question"}).json()["reply"]
+        self.assertEqual(self.post(f'/api/discussions/replies/{followup["id"]}/action/', {"action": "resolve", "value": True}).status_code, 200)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "bookmark", "value": True}).status_code, 200)
+        self.assertTrue(self.client.get(f"/api/discussions/{pk}/").json()["thread"]["bookmarked"])
+        self.client.force_login(self.staff)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/answer/", {"kind": "instructor", "body": "Staff answer"}).status_code, 200)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/answer/endorse/", {"value": True}).status_code, 200)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "pin", "value": True}).status_code, 200)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "lock", "value": True}).status_code, 200)
+        self.client.force_login(self.student)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/replies/", {"body": "Blocked"}).status_code, 403)
+        data = self.client.get(f"/api/discussions/{pk}/").json()
+        self.assertTrue(data["thread"]["pinned"])
+        self.assertTrue(data["answers"]["student"]["endorsed"])
+        self.assertTrue(data["replies"][0]["resolved"])
+
+    def test_poll_vote_and_statistics(self):
+        thread = self.post("/api/discussions/new/", {"title": "Choose", "body": "One", "kind": "poll", "options": ["A", "B"]}).json()["thread"]
+        pk = thread["id"]
+        options = self.client.get(f"/api/discussions/{pk}/").json()["poll_options"]
+        self.assertEqual(self.post(f"/api/discussions/{pk}/vote/", {"option_id": options[0]["id"]}).status_code, 200)
+        detail = self.client.get(f"/api/discussions/{pk}/").json()
+        self.assertEqual(detail["poll_options"][0]["votes_count"], 1)
+        self.assertEqual(detail["my_vote"], options[0]["id"])
+        self.client.force_login(self.staff)
+        stats = self.client.get("/api/discussions/statistics/")
+        self.assertEqual(stats.status_code, 200)
+        self.assertEqual(stats.json()["polls"], 1)
+        self.assertTrue(stats.json()["contributors"])
+        self.assertIn("Member,Role,Posts,Followups,Answers,Post views", self.client.get("/api/discussions/statistics/export/").content.decode())
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "lock", "value": True}).status_code, 200)
+        self.client.force_login(self.student)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/vote/", {"option_id": options[1]["id"]}).status_code, 403)
+
+    def test_anonymous_followup_hides_author_from_classmates(self):
+        thread = self.post("/api/discussions/new/", {"title": "Question", "body": "Help"}).json()["thread"]
+        self.assertEqual(self.post(f'/api/discussions/{thread["id"]}/replies/',
+            {"body": "I have this question too", "anonymous": "classmates"}).status_code, 201)
+        other = get_user_model().objects.create_user("classmate")
+        Membership.objects.create(course=self.course, user=other, role="student")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(f'/api/discussions/{thread["id"]}/').json()["replies"][0]["author"], "Anonymous")
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(f'/api/discussions/{thread["id"]}/').json()["replies"][0]["author"], "student")
+
+    def test_post_history_and_anonymity_controls(self):
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Hidden", "body": "x", "anonymous": "everyone"}).status_code, 403)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.post("/api/discussions/settings/", {"allow_anonymous_to_staff": True}).status_code, 200)
+        self.client.force_login(self.student)
+        thread = self.post("/api/discussions/new/", {"title": "First", "body": "Version one", "anonymous": "everyone"}).json()["thread"]
+        pk = thread["id"]
+        self.assertEqual(self.post(f"/api/discussions/{pk}/edit/", {"title": "Second", "body": "**Version two**", "editor_mode": "plain", "folder_ids": []}).status_code, 200)
+        versions = self.client.get(f"/api/discussions/{pk}/history/").json()["revisions"]
+        self.assertEqual([row["title"] for row in versions], ["First", "Second"])
+        self.assertEqual(versions[1]["editor_mode"], "plain")
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(f"/api/discussions/{pk}/").json()["thread"]["author"], "Anonymous")
+        self.assertEqual(self.client.get(f"/api/discussions/{pk}/history/").json()["revisions"][0]["editor_label"], "Anonymous")
+        self.assertEqual(self.client.get("/api/discussions/statistics/").json()["contributors"][0]["posts"], 0)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "hide_history", "value": True}).status_code, 200)
+        self.client.force_login(self.student)
+        self.assertEqual(self.client.get(f"/api/discussions/{pk}/history/").status_code, 403)
+
+    def test_attachments_are_private_and_course_scoped(self):
+        thread = self.post("/api/discussions/new/", {"title": "File", "body": "See attached", "visibility": "private"}).json()["thread"]
+        pk = thread["id"]
+        uploaded = self.client.post(f"/api/discussions/{pk}/attachments/",
+            {"file": SimpleUploadedFile("example.py", b"print(1)\n", content_type="text/plain")})
+        self.assertEqual(uploaded.status_code, 201)
+        attachment = uploaded.json()["attachment"]
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 200)
+        other = get_user_model().objects.create_user("classmate")
+        Membership.objects.create(course=self.course, user=other, role="student")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 404)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(f'/api/discussions/attachments/{attachment["id"]}/').status_code, 200)
+
+    def test_student_view_hides_staff_controls(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.post("/api/student-view/", {"enabled": True}).status_code, 200)
+        self.assertFalse(self.client.get("/api/discussions/meta/").json()["staff"])
+        self.assertEqual(self.post("/api/discussions/settings/", {"allow_student_posts": False}).status_code, 403)
+        self.assertEqual(self.client.get("/api/discussions/statistics/export/").status_code, 403)
+
+    def test_saved_draft_is_private_and_cleared_when_published(self):
+        draft = {"title": "Work in progress", "body": "", "editor_mode": "plain", "kind": "question", "visibility": "public",
+            "anonymous": "none", "folder_ids": [], "options": []}
+        self.assertEqual(self.post("/api/discussions/draft/save/", draft).status_code, 200)
+        self.assertEqual(self.client.get("/api/discussions/draft/").json()["draft"]["title"], "Work in progress")
+        self.assertEqual(self.client.get("/api/discussions/draft/").json()["draft"]["editor_mode"], "plain")
+        other = get_user_model().objects.create_user("classmate")
+        Membership.objects.create(course=self.course, user=other, role="student")
+        self.client.force_login(other)
+        self.assertIsNone(self.client.get("/api/discussions/draft/").json()["draft"])
+        self.client.force_login(self.student)
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Finished", "body": "Question"}).status_code, 201)
+        self.assertIsNone(self.client.get("/api/discussions/draft/").json()["draft"])
+
+    def test_teacher_can_require_reading_before_student_posts(self):
+        self.client.force_login(self.staff)
+        note = self.post("/api/discussions/new/", {"title": "Read first", "body": "Instructions", "kind": "note"}).json()["thread"]
+        pk = note["id"]
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "required_reading", "value": True}).status_code, 200)
+        self.assertEqual(self.post("/api/discussions/settings/", {"require_reading_before_posting": True}).status_code, 200)
+        self.client.force_login(self.student)
+        self.assertEqual(self.client.get("/api/discussions/meta/").json()["reading"], {"unread": 1, "required": 1})
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Question", "body": "Help"}).status_code, 403)
+        self.assertEqual(self.post(f"/api/discussions/{pk}/action/", {"action": "read", "value": True}).status_code, 400)
+        self.assertEqual(self.client.get(f"/api/discussions/{pk}/").status_code, 200)
+        self.assertEqual(self.client.get("/api/discussions/meta/").json()["reading"]["required"], 0)
+        self.assertEqual(self.post("/api/discussions/new/", {"title": "Question", "body": "Help"}).status_code, 201)

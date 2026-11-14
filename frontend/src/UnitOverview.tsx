@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
-import { ArrowUpRight, Check, ClipboardList } from "lucide-react";
+import { ArrowUpRight, Check, ClipboardList, MessageCircle } from "lucide-react";
 import { routeHref } from "./navigation";
 import { unitColor } from "./unitColors";
 
@@ -22,7 +22,7 @@ function unitOf(lesson: Lesson) { return lesson.title.match(/(?:Chapter|Unit)\s+
 function quizUnit(quiz: Lesson) { const number = Number(quiz.title.match(/(\d+)\s*$/)?.[1]); return String(quiz.metadata?.unit_number || ({ 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 5 } as Record<number, number>)[number] || "other"); }
 const points = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-export default function UnitOverview({ lessons, quizzes, onOpen, example = true }: { example?: boolean; lessons: Lesson[]; quizzes: Lesson[]; onOpen: (lesson: number, part: number | null) => void }) {
+export default function UnitOverview({ lessons, quizzes, onOpen, onDiscussions, example = true }: { example?: boolean; lessons: Lesson[]; quizzes: Lesson[]; onOpen: (lesson: number, part: number | null) => void; onDiscussions?: () => void }) {
   const groupOf = (lesson: Lesson) => example ? unitOf(lesson) : `section:${lesson.id}`;
   const groupQuiz = (quiz: Lesson) => example ? quizUnit(quiz) : `section:${quiz.id}`;
   const keys = [...new Set([...lessons.map(groupOf), ...quizzes.map(groupQuiz)])];
@@ -31,8 +31,8 @@ export default function UnitOverview({ lessons, quizzes, onOpen, example = true 
   return (
     <section className="ch-units" aria-label="Course units">
       <div className="ch-units-heading">
-        <span className="ch-kicker ch-kicker-accent">YOUR COURSE</span>
-        <h2>Course units</h2>
+        <div><span className="ch-kicker ch-kicker-accent">YOUR COURSE</span><h2>Course units</h2></div>
+        {onDiscussions && <button className="ch-discussion-shortcut" aria-label="Open discussion board" title="Discussion board" onClick={onDiscussions}><MessageCircle size={23} strokeWidth={1.8} /></button>}
       </div>
       <div className="ch-units-scroll">
         <div className="ch-unit-grid">

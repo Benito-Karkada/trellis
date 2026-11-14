@@ -1,0 +1,22 @@
+.db-select { position:relative; min-width:0; width:100%; font-size:13px; font-weight:600; }
+.db-select-trigger { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:40px; width:100%; padding:9px 11px; border:1px solid var(--border,#b9cdbd); border-radius:7px; color:var(--ink,#254839); background:var(--surface-raised,#f8fbf7); text-align:left; }
+.db-select-trigger span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.db-select-trigger svg { flex:none; transition:transform .18s; }
+.db-select-trigger[aria-expanded="true"] { border-color:var(--accent,#315d51); box-shadow:0 0 0 3px #315d5124; }
+.db-select-trigger[aria-expanded="true"] svg { transform:rotate(180deg); }
+.db-select-trigger:disabled { opacity:.55; cursor:not-allowed; }
+.db-select.compact .db-select-trigger { min-height:34px; padding:6px 7px; border-color:transparent; background:transparent; font-size:12px; }
+.db-select.compact .db-select-trigger:hover { background:var(--accent-soft,#e8f1e8); }
+.db-select-menu { position:absolute; z-index:90; top:calc(100% + 5px); left:0; min-width:max(100%,190px); max-height:280px; overflow:auto; padding:5px; border:1px solid var(--border,#bed1c2); border-radius:9px; background:var(--surface,#fff); color:var(--ink,#253e31); box-shadow:0 14px 35px #193d2e29; }
+.db-select-menu button { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:36px; padding:8px 10px; border:0; border-radius:5px; background:transparent; color:inherit; text-align:left; white-space:nowrap; }
+.db-select-menu button:hover,.db-select-menu button:focus-visible,.db-select-menu button.selected { background:var(--accent-soft,#e8f2e9); color:var(--accent,#245b3f); }
+.db-select-menu button:focus-visible,.db-select-trigger:focus-visible { outline:3px solid var(--accent,#b5904d); outline-offset:2px; }
+.db-select-group { padding:8px 10px 4px; color:var(--muted,#6b7d70); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.lesson-picker .db-select { margin-top:7px; }
+.new-part .db-select { width:190px; flex:none; }
+.csv-control .db-select { grid-column:1; grid-row:2; }
+.review-filters .db-select { width:min(340px,55%); }
+.review-code .db-select { width:calc(100% - 24px); margin:12px; }
+.review-notes .review-status-field { display:grid; gap:8px; }
+@media(max-width:850px){.review-filters .db-select { width:100%; }}
+@media(max-width:600px){.csv-control .db-select { grid-column:1; grid-row:auto; }}
