@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { api } from "./api";
+import BrandLogo from "./BrandLogo";
 const EditorPane = lazy(() => import("./EditorPane"));
 type Lesson = {
   id: number;
@@ -163,7 +164,7 @@ export default function Gradebook({
           <ArrowLeft size={18} />
           Back to home
         </button>
-        <strong>Course gradebook</strong>
+        <button className="brand" aria-label="Back to course home" onClick={onBack}><BrandLogo/></button>
         <div />
       </header>
       <main className="gradebook-main">

@@ -67,6 +67,8 @@ docker compose logs -f backend frontend
 docker compose down
 ```
 
+The home page, chapter content, problem sets, editor, quizzes, and staff screens share the sage/paper/navy design tokens in `frontend/src/designTokens.css`. Course and staff styling lives in `frontend/src/courseDesign.css`; the home notebook keeps its own layout.
+
 Frontend and backend source are mounted into their development containers. Changes reload automatically. Rebuild after changing dependencies, Dockerfiles, or the shared grading package with `docker compose up -d --build`. Restart the host worker after changing runner code.
 
 If ports 5173 or 8000 are in use, change `TRELLIS_FRONTEND_PORT` and `TRELLIS_BACKEND_PORT` in `.env`, recreate the containers, and restart the worker. The worker reads the local backend port automatically. The database, cache, and private files use this project's own Docker volumes; only the web and API ports bind to localhost.
