@@ -25,6 +25,10 @@
 .db-search-field { display:flex; flex:1; min-width:0; min-height:39px; align-items:center; gap:7px; padding:0 10px; border:1px solid #c3d0c5; border-radius:8px; background:#fff; color:#6c7c70; cursor:text; }
 .db-search-field:focus-within { border-color:#315d51; box-shadow:0 0 0 3px #315d5124; }
 .db-search-field input { flex:1; width:100%; min-width:0; padding:0; border:0; outline:0; appearance:none; background:transparent; color:#253e30; font-size:12px; }
+/* The shared course theme gives every input a raised field. This input is part
+   of the surrounding search surface, so it must not draw a second field. */
+html[data-theme] .discussion-shell .db-search-field > input[type="search"] { margin:0; padding:0; border:0 !important; border-radius:0 !important; outline:0 !important; background:transparent !important; box-shadow:none !important; appearance:none; -webkit-appearance:none; }
+html[data-theme] .discussion-shell .db-search-field > input[type="search"]:focus-visible { outline:0 !important; outline-offset:0; }
 .db-search-field input::-webkit-search-cancel-button { display:none; }
 .db-feed-actions .db-search-clear { display:grid; place-items:center; flex:none; width:22px; height:22px; border-radius:50%; color:#587266; font-size:18px; line-height:1; }
 .db-feed-actions .db-search-clear:hover { background:#e6efe8; }
