@@ -10,7 +10,6 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-from .models import Course, Membership
 from .studio import json_body
 
 
@@ -54,9 +53,6 @@ def register(request):
         validate_password(password)
     except ValidationError as exc:
         return JsonResponse({"error": " ".join(exc.messages)}, status=400)
-    course = Course.objects.order_by("pk").first()
-    if course is None:
-        return JsonResponse({"error": "Course enrollment is not open yet."}, status=409)
     users = get_user_model().objects.select_for_update()
     user = users.filter(username__iexact=email).first() or users.filter(email__iexact=email).first()
     if user is not None and user.has_usable_password():
@@ -69,7 +65,6 @@ def register(request):
     user.last_name = last_name
     user.set_password(password)
     user.save()
-    Membership.objects.get_or_create(course=course, user=user, defaults={"role": Membership.Role.STUDENT})
     login(request, user)
     return JsonResponse({"ok": True})
 

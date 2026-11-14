@@ -18,6 +18,7 @@ from .schema import student_projection, validate_content
 from .services import require_staff, publish
 from .workspace_files import RESULTS_PLACEHOLDER, is_results_file, with_results_placeholder, results_unchanged
 from .cooldowns import active_locks
+from .course_context import current_membership, require_matching_context
 
 
 def json_body(view):
@@ -47,6 +48,7 @@ def file_visibility(path):
 
 def member(request, activity):
     if not request.user.is_authenticated: raise PermissionDenied
+    require_matching_context(request, activity.lesson.course_id)
     membership = Membership.objects.filter(user=request.user, course=activity.lesson.course, active=True).first()
     if not membership: raise PermissionDenied
     student_view = not getattr(request,'api_token',None) and request.session.get("student_view_course") == activity.lesson.course_id
@@ -104,7 +106,7 @@ def session(request):
 @json_body
 def student_view(request):
     if not request.user.is_authenticated: raise PermissionDenied
-    membership=Membership.objects.filter(user=request.user,active=True).select_related('course').first()
+    membership=current_membership(request)
     if not membership or membership.role not in {'instructor','head_ta','ta'}: raise PermissionDenied
     enabled=request.payload.get('enabled') is True
     if enabled: request.session['student_view_course']=membership.course_id
@@ -122,7 +124,7 @@ def local_login(request):
 
 def outline(request):
     if not request.user.is_authenticated: raise PermissionDenied
-    membership = Membership.objects.filter(user=request.user, active=True).select_related('course').first()
+    membership = current_membership(request)
     if not membership: raise Http404
     course = membership.course
     student_view=request.session.get('student_view_course') == course.pk
@@ -168,7 +170,8 @@ def outline(request):
                         'category':a.metadata.get('category','content')}))
         lessons.append({'id':lesson.pk,'title':lesson.title,'visibility':lesson.visibility,'metadata':metadata,'activities':items})
     resume=max(resume_candidates,key=lambda row:row[0])[1] if resume_candidates else None
-    return JsonResponse({'title':course.title,'term':course.term,'role':role,'actual_role':membership.role,
+    from .courses import identity
+    return JsonResponse({**identity(course),'role':role,'actual_role':membership.role,
         'student_view':student_view,'lessons':lessons,'resume':resume,'grading_feedback':course.metadata.get('grading_feedback',{})})
 
 def detail(request, pk):
@@ -192,6 +195,8 @@ def detail(request, pk):
     data['ed_discussion_url'] = student_link(activity)
     progress = ActivityProgress.objects.filter(user=request.user, activity=activity).first()
     data['earned_points'] = point_text(progress.score) if progress else '0'
+    from .visualization import unlocked, samples
+    data['visualization_available'] = unlocked(request, revision) and bool(samples(revision))
     from .hints import availability,solved_questions
     data['hints_available']=availability(revision)
     data['solved_questions']=solved_questions(revision,progress)

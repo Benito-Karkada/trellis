@@ -141,7 +141,7 @@ html[data-theme="dark"] .margin {
 }
 .finish-quiz {
   margin-left: 8px;
-  background: #285f7b !important;
+  background: var(--trellis-navy) !important;
   color: white !important;
   border: 0 !important;
   padding: 8px 12px !important;
@@ -249,8 +249,8 @@ html[data-theme="dark"] .console-heading {
   color: #d4dee4;
 }
 .student-view-active {
-  background: #e7f2f7 !important;
-  color: #285f7b !important;
+  background: var(--trellis-sage-soft) !important;
+  color: var(--trellis-sage-deep) !important;
 }
 .exercise-score {
   padding: 8px 11px;

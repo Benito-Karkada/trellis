@@ -4,12 +4,12 @@
    buttons (hover color), progress bars, headings and ".logout-button", and the prefix lets these win. */
 
 .ch-shell {
-  --ch-panel: #506C64;
-  --ch-page: #EBE8E3;
+  --ch-panel: var(--trellis-sage);
+  --ch-page: var(--trellis-paper);
   --ch-page-edge: #CFC8AE;
-  --ch-action: #051F3A;      /* "Open" buttons */
-  --ch-soft-action: #425852; /* Continue + carousel controls */
-  --ch-gold: #8F713D;
+  --ch-action: var(--trellis-navy);      /* "Open" buttons */
+  --ch-soft-action: var(--trellis-sage-deep); /* Continue + carousel controls */
+  --ch-gold: var(--trellis-gold);
   height: 100vh; min-height: 640px; display: flex; flex-direction: column;
   background: #EDEDED; color: #000; overflow: hidden;
 }

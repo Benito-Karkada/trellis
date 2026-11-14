@@ -129,6 +129,7 @@ def main():
         return value
     namespace.update({k:decode(v) for k,v in variables.items()})
     status, value = "ok", None
+    recorder = None
     # Start the student-code clock after container startup and fixture setup.
     # The controller still enforces an independent hard deadline and removal.
     signal.signal(signal.SIGALRM, time_expired)
@@ -154,7 +155,15 @@ def main():
                             body.append(statement)
                     else: body.append(statement)
                 tree.body=body;ast.fix_missing_locations(tree);source=tree
-            exec(compile(source, "student.py", "exec"), namespace)
+            if request["action"] == "visualize":
+                from importlib.util import spec_from_file_location, module_from_spec
+                spec = spec_from_file_location("trellis_visualize", Path(__file__).with_name("visualize.py"))
+                tracing = module_from_spec(spec)
+                spec.loader.exec_module(tracing)
+                recorder = tracing.Recorder(output)
+                recorder.run(source, namespace)
+            else:
+                exec(compile(source, "student.py", "exec"), namespace)
             if request['action']=='module_outcome':value={'exception':None,'message':None,'stdout':output.getvalue().strip()}
             if request["action"] in {"function","function_stdout"}:
                 if request["target"] not in namespace: status = "missing_target"
@@ -242,10 +251,12 @@ def main():
             except OutputLimit:pass
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
+    if recorder is not None:
+        value = recorder.result(status)
     if output.exceeded:
         status = "output_limit"
     try:
-        payload = serialize({"status": status, "value": value, "stdout": output.getvalue()}, allow_nan=False)
+        payload = serialize({"status": status, "value": value, "stdout": output.getvalue()[:4000] if recorder else output.getvalue()}, allow_nan=False)
     except (ValueError, TypeError, RecursionError):
         payload = serialize({"status": "runtime_error", "value": None, "stdout": ""})
     destination.write(payload)

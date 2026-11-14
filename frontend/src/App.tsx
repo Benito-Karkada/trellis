@@ -34,13 +34,17 @@ import {
   Users,
   Clock3,
   House,
+  Braces,
 } from "lucide-react";
 import WorkspaceDivider from "./WorkspaceDivider";
 import AuthScreen from "./AuthScreen";
 import CourseSettings from "./CourseSettings";
 import CourseHome from "./CourseHome";
+import CourseLibrary from "./CourseLibrary";
+import ContentBuilder from "./ContentBuilder";
 import Gradebook from "./Gradebook";
 import { api } from "./api";
+const CodeVisualizer = lazy(() => import("./CodeVisualizer"));
 const EditorPane = lazy(() => import("./EditorPane"));
 type Node = {
   type: string;
@@ -100,6 +104,10 @@ type Lesson = {
   activities: Item[];
 };
 type Outline = {
+  id: number;
+  code: string;
+  term: string;
+  example: boolean;
   grading_feedback?: Record<string,string>;
   title: string;
   role: string;
@@ -110,6 +118,7 @@ type Outline = {
 };
 type File = { id?: number; path: string; visibility: string; text: string };
 type Detail = {
+  visualization_available?: boolean;
   ed_discussion_url?: string | null;
   reset_available?: boolean;
   native_practice?: boolean;
@@ -223,7 +232,7 @@ function Rich({
 }
 export default function App() {
   const { route, update: updateRoute, guard: navigationGuard } = useNavigation();
-  const { page, lessonId, active, category, mode } = route;
+  const { page, courseId, lessonId, active, category, mode } = route;
   const setPage = (page: typeof route.page) => updateRoute({page});
   const setLessonId = (lessonId: number | null) => updateRoute({lessonId});
   const setActive = (active: number | null) => updateRoute({active});
@@ -267,6 +276,7 @@ export default function App() {
     [contentDraft, setContentDraft] = useState(""),
     [gradingDraft, setGradingDraft] = useState(""),
     [points, setPoints] = useState("1");
+  const [advancedContent,setAdvancedContent]=useState(false);
   const [solvedQuestions,setSolvedQuestions]=useState<Set<string>>(new Set());
   const [reviewChoice,setReviewChoice]=useState<Record<string,string>>({});
   const [nativePractice,setNativePractice]=useState(false);
@@ -322,9 +332,10 @@ export default function App() {
       ),
     ) || [];
   const executionResult=questions.length ? codeResult : result;
+  useEffect(()=>{document.title=outline && page!=="courses" ? `${outline.code || outline.title} · Trellis` : "Trellis";},[outline?.id,outline?.title,outline?.code,page]);
   const refreshOutline = async () => {
     const data = await api("outline/");
-    setOutline(data);
+    if (readRoute().courseId === data.id || !readRoute().courseId) setOutline(data);
     return data as Outline;
   };
   useEffect(() => {
@@ -342,11 +353,21 @@ export default function App() {
       .finally(() => setBooting(false));
   }, []);
   useEffect(() => {
-    if (!authenticated) return;
-    setOutlineLoading(true);
-    refreshOutline().catch((e) => setError(e.message))
-      .finally(() => setOutlineLoading(false));
-  }, [authenticated]);
+    if (!authenticated || page === "courses") return;
+    let current=true;
+    loadSequence.current++;
+    if(pollTimer.current)clearTimeout(pollTimer.current);
+    setOutline(null);setDetail(null);setFiles([]);setResult(null);setCodeResult(null);
+    setResponses({});setDirty(false);setQuizAttempt(null);setQuizStatusLoaded(false);
+    setError("");setNotice("");setOutlineLoading(true);
+    api("outline/").then(data=>{
+      if(!current)return;
+      setOutline(data);
+      if(!courseId)updateRoute({courseId:data.id});
+    }).catch(e=>{if(current)setError(e.message);})
+      .finally(()=>{if(current)setOutlineLoading(false);});
+    return()=>{current=false;};
+  }, [authenticated, courseId, page === "courses"]);
   useEffect(()=>{
     if(page!=="course"||!authenticated||!lessonId||outline?.actual_role!=="student")return;
     api(`assignments/${lessonId}/open/`,{}).catch(()=>{});
@@ -416,7 +437,7 @@ export default function App() {
     load();
     setEditorTab("Files");
     window.scrollTo(0, 0);
-  }, [active, mode, page, authenticated, outline?.role]);
+  }, [active, mode, page, authenticated, outline?.role, outline?.id]);
   useEffect(() => {
     const update = () => {
       const size = document.documentElement.scrollHeight - window.innerHeight;
@@ -958,7 +979,7 @@ export default function App() {
   function clearAccountView() {
     loadSequence.current += 1;
     if (pollTimer.current) clearTimeout(pollTimer.current);
-    updateRoute({page:"home",lessonId:null,active:null,category:"content",mode:"student"});
+    updateRoute({page:"courses",courseId:null,lessonId:null,active:null,category:"content",mode:"student"});
     setOutline(null);
     setDetail(null);setFiles([]);setSelected("");
     setResult(null);setResponses({});setLocks({});
@@ -970,7 +991,7 @@ export default function App() {
   const authenticatedNow = () => {
     const destination=readRoute();
     clearAccountView();
-    if(destination.page==="course")updateRoute(destination);
+    if(destination.courseId || destination.page==="course" || destination.page==="visualizer")updateRoute(destination);
     setOutlineLoading(true);
     setAuthenticated(true);
   };
@@ -981,8 +1002,8 @@ export default function App() {
       setAuthenticated(false);
     } catch (e) { setError((e as Error).message); }
   }
-  if (booting || (authenticated && (outlineLoading || !outline)))
-    return <div className="startup-shell"><div className="brand"><BrandLogo/></div><main role="status" aria-live="polite"><span className="startup-spinner"/><h1>{error ? "Couldn’t load your course" : "Opening your course"}</h1>{error ? <><p>{error}</p><button className="primary" onClick={() => window.location.reload()}>Try again</button></> : <p>Getting your lessons and progress.</p>}</main></div>;
+  if (booting || (authenticated && page!=="courses" && (outlineLoading || !outline || (!!courseId && outline.id!==courseId))))
+    return <div className="startup-shell"><div className="brand"><BrandLogo/></div><main role="status" aria-live="polite"><span className="startup-spinner"/><h1>{error ? "Couldn’t load your course" : "Opening your course"}</h1>{error ? <><p>{error}</p><button className="primary" onClick={() => window.location.reload()}>Try again</button><button onClick={()=>updateRoute({page:"courses",courseId:null})}>All courses</button></> : <p>Getting your lessons and progress.</p>}</main></div>;
   if (!authenticated)
     return (
       <AuthScreen
@@ -991,6 +1012,8 @@ export default function App() {
         registrationOpen={registrationOpen}
       />
     );
+  if (page === "courses")
+    return <CourseLibrary onSignOut={signOut} onOpen={id=>{if(leave())updateRoute({page:"home",courseId:id,lessonId:null,active:null,category:"content",mode:"student"});}}/>;
   if (page === "settings" && outline)
     return (
       <CourseSettings
@@ -1003,15 +1026,22 @@ export default function App() {
       />
     );
   if (page === "gradebook")
-    return <Gradebook theme={theme} onBack={() => setPage("home")} />;
+    return <Gradebook courseLabel={outline?.code || outline?.title || "Course"} theme={theme} onBack={() => setPage("home")} />;
+  if (page === "visualizer")
+    return <Suspense fallback={<div className="startup-shell" role="status">Opening code visualizer…</div>}><CodeVisualizer activity={active} onBack={()=>setPage(active && lessonId?"course":"home")}/></Suspense>;
   if (page === "home" && outline)
     return (
       <CourseHome
         title={outline.title}
+        code={outline.code}
+        example={outline.example}
+        term={outline.term}
+        onCourses={()=>{if(leave())updateRoute({page:"courses",courseId:null,lessonId:null,active:null});}}
         lessons={outline.lessons}
         resume={outline.resume}
         canManage={staff}
         onSignOut={signOut}
+        onVisualize={() => updateRoute({page:"visualizer",active:null,lessonId:null})}
         onRefresh={refreshOutline}
         onSettings={() => setPage("settings")}
         onGradebook={() => setPage("gradebook")}
@@ -1047,8 +1077,9 @@ export default function App() {
           <button className="brand" onClick={() => { if (leave()) setPage("home"); }}>
             <BrandLogo/>
           </button>
-          <h2>CS 1301</h2>
-          <p className="course-subtitle">Introduction to Computing</p>
+          <h2>{outline?.code || outline?.title}</h2>
+          <p className="course-subtitle">{outline?.code ? outline.title : outline?.term}</p>
+          <button className="sidebar-courses" disabled={busy||examActive} onClick={()=>{if(leave())updateRoute({page:"courses",courseId:null});}}>All courses</button>
           <label className="lesson-picker">
             Lesson
             <select
@@ -1421,11 +1452,11 @@ export default function App() {
             <section className="config-panel">
               {editorTab === "Content" && (
                 <>
-                  <h2>Content blocks</h2>
-                  <div className="json-config-editor"><Suspense fallback={<div className="editor-loading">Opening editor…</div>}>
+                  <div className="builder-heading"><h2>Content blocks</h2><button aria-pressed={advancedContent} onClick={()=>setAdvancedContent(!advancedContent)}>{advancedContent?"Content builder":"Advanced JSON"}</button></div>
+                  {!advancedContent ? <ContentBuilder content={contentDraft} grading={gradingDraft} disabled={busy||loading} onChange={(content,grading)=>{setContentDraft(content);setGradingDraft(grading);setDirty(true);}}/> : <div className="json-config-editor"><Suspense fallback={<div className="editor-loading">Opening editor…</div>}>
                     <EditorPane ariaLabel="Content blocks" path={`config/${active}/content.json`} value={contentDraft} theme={theme} disabled={busy||loading}
                       onChange={text=>{setContentDraft(text);setDirty(true);}} />
-                  </Suspense></div>
+                  </Suspense></div>}
                 </>
               )}
               {editorTab === "Grading" && (
@@ -1527,6 +1558,7 @@ export default function App() {
                     <span>Use Preview to run this exercise.</span>
                   ) : (
                     <div>
+                      {detail?.revision === detail?.published_revision && lesson?.metadata?.kind !== "programming_quiz" && !sandbox && (detail?.visualization_available || (preview && executionResult?.passed)) && <button disabled={busy} onClick={()=>{if(leave())setPage("visualizer");}}><Braces size={16}/>Visualize sample</button>}
                       <button
                         disabled={
                           busy ||

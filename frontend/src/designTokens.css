@@ -1,0 +1,25 @@
+/* Trellis's shared visual language, drawn from the course home notebook. */
+:root {
+  --trellis-canvas: #ededed;
+  --trellis-paper: #ebe8e3;
+  --trellis-surface: #ffffff;
+  --trellis-inset: #f3f3ed;
+  --trellis-header: #e6e6e6;
+  --trellis-sage: #506c64;
+  --trellis-sage-deep: #425852;
+  --trellis-sage-soft: #e8eee8;
+  --trellis-navy: #051f3a;
+  --trellis-navy-hover: #0d3158;
+  --trellis-ink: #162b2a;
+  --trellis-muted: #5b6863;
+  --trellis-line: #c7cec6;
+  --trellis-line-soft: #e1e5dc;
+  --trellis-gold: #8f713d;
+  --trellis-gold-soft: #f5edda;
+  --trellis-success: #066034;
+  --trellis-success-soft: #e8f2e7;
+  --trellis-danger: #a23e35;
+  --trellis-danger-soft: #fbefeb;
+  --trellis-card-shadow: 0 3px 12px #1b362c06;
+  --trellis-dialog-shadow: 0 24px 80px #1b362c30;
+}

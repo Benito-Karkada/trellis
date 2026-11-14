@@ -9,6 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { api } from "./api";
+import BrandLogo from "./BrandLogo";
 const EditorPane = lazy(() => import("./EditorPane"));
 type Lesson = {
   id: number;
@@ -59,9 +60,11 @@ type Review = {
   activities: Work[];
 };
 export default function Gradebook({
+  courseLabel,
   theme,
   onBack,
 }: {
+  courseLabel: string;
   theme: "light" | "dark";
   onBack: () => void;
 }) {
@@ -163,13 +166,13 @@ export default function Gradebook({
           <ArrowLeft size={18} />
           Back to home
         </button>
-        <strong>Course gradebook</strong>
+        <button className="brand" aria-label="Back to course home" onClick={onBack}><BrandLogo/></button>
         <div />
       </header>
       <main className="gradebook-main">
         <div className="gradebook-heading">
           <div>
-            <span className="auth-kicker">CS 1301</span>
+            <span className="auth-kicker">{courseLabel}</span>
             <h1>Gradebook</h1>
             <p>
               Click a student’s name to review their work across the entire

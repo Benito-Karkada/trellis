@@ -1,9 +1,12 @@
 import React from "react";
 import {createRoot} from "react-dom/client";
 import App from "./App";
+import "./designTokens.css";
 import "./styles.css";
 import "./workspace.css";
 import "./theme.css";
+import "./courseDesign.css";
+import "./courses.css";
 document.documentElement.dataset.theme="light";
 localStorage.setItem("theme","light");
 const root=import.meta.hot?.data.root??createRoot(document.getElementById("root")!);

@@ -307,3 +307,20 @@ class StudentReview(models.Model):
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     snapshot = models.JSONField(default=dict)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class VisualizationJob(models.Model):
+    """Separate from graded jobs: replaying a trace never changes progress."""
+    import uuid
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    revision = models.ForeignKey(Revision, null=True, blank=True, on_delete=models.CASCADE)
+    source = models.TextField()
+    files = models.JSONField(default=dict)
+    stdin = models.TextField(blank=True)
+    status = models.CharField(max_length=20, default="pending", db_index=True)
+    lease = models.CharField(max_length=64, blank=True)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    claimed_at = models.DateTimeField(null=True)
+    completed_at = models.DateTimeField(null=True)

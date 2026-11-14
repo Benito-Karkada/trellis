@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import { ArrowUpRight, ChevronDown, Check, ClipboardList, PackageOpen, X } from "lucide-react";
-import { routeHref } from "./navigation";
+import { readRoute, routeHref } from "./navigation";
 import { unitColor } from "./unitColors";
 
 type Part = { id: number; title: string; status: string; earned_points: string; maximum_points: string; metadata?: { kind?: string; category?: string } };
@@ -20,19 +20,22 @@ function unitOf(lesson: Lesson) { return lesson.title.match(/(?:Chapter|Unit)\s+
 function quizUnit(quiz: Lesson) { const number = Number(quiz.title.match(/(\d+)\s*$/)?.[1]); return String(quiz.metadata?.unit_number || ({ 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 5 } as Record<number, number>)[number] || "other"); }
 const points = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 const preferenceKey = "trellis:unboxed-units:v1"; // kept so students' saved open/closed units carry over
-function initialOpened() { try { const saved: unknown = JSON.parse(localStorage.getItem(preferenceKey) || "[]"); return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []); } catch { return new Set<string>(); } }
+function initialOpened(key:string) { try { const saved: unknown = JSON.parse(localStorage.getItem(key) || "[]"); return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []); } catch { return new Set<string>(); } }
 
-export default function UnitOverview({ lessons, quizzes, onOpen }: { lessons: Lesson[]; quizzes: Lesson[]; onOpen: (lesson: number, part: number | null) => void }) {
+export default function UnitOverview({ lessons, quizzes, onOpen, example=true }: { example?:boolean; lessons: Lesson[]; quizzes: Lesson[]; onOpen: (lesson: number, part: number | null) => void }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [opened, setOpened] = useState(initialOpened);
+  const keyForCourse = preferenceKey+":"+readRoute().courseId;
+  const [opened, setOpened] = useState(()=>initialOpened(keyForCourse));
+  const groupOf=(lesson:Lesson)=>example?unitOf(lesson):`section:${lesson.id}`;
+  const groupQuiz=(quiz:Lesson)=>example?quizUnit(quiz):`section:${quiz.id}`;
   const openButtons = useRef<Record<string, HTMLButtonElement | null>>({});
   const closeButtons = useRef<Record<string, HTMLButtonElement | null>>({});
-  const keys = [...new Set([...lessons.map(unitOf), ...quizzes.map(quizUnit)])];
+  const keys = [...new Set([...lessons.map(groupOf), ...quizzes.map(groupQuiz)])];
   function toggle(key: string) {
     const opening = !opened.has(key), next = new Set(opened);
     if (opening) next.add(key); else next.delete(key);
     setOpened(next);
-    try { localStorage.setItem(preferenceKey, JSON.stringify([...next])); } catch { /* Still works without storage. */ }
+    try { localStorage.setItem(keyForCourse, JSON.stringify([...next])); } catch { /* Still works without storage. */ }
     requestAnimationFrame(() => { (opening ? closeButtons : openButtons).current[key]?.focus({ preventScroll: true }); });
   }
   function link(lesson: Lesson, part?: Part) { const target = part || lesson.activities[0]; return routeHref({ page: "course", lessonId: lesson.id, active: target?.id || null, category: target?.metadata?.category || "content" }); }
@@ -46,25 +49,25 @@ export default function UnitOverview({ lessons, quizzes, onOpen }: { lessons: Le
       <div className="ch-units-scroll">
         <div className="ch-unit-grid">
           {keys.map((key) => {
-            const chapters = lessons.filter((l) => unitOf(l) === key), assessments = quizzes.filter((q) => quizUnit(q) === key), isOpen = opened.has(key);
+            const chapters = lessons.filter((l) => groupOf(l) === key), assessments = quizzes.filter((q) => groupQuiz(q) === key), isOpen = opened.has(key);
             const count = chapters.reduce((n, l) => n + (l.metadata?.activity_count ?? l.activities.length), 0), done = chapters.reduce((n, l) => n + (l.metadata?.completed_count ?? l.activities.filter((a) => a.status === "completed").length), 0);
-            const label = key === "final" ? "FINALE" : key === "other" ? "EXTRA" : `UNIT ${key}`;
-            const openLabel = key === "final" ? "Open Set" : key === "other" ? "Open Coursework" : `Open Unit ${key}`;
+            const label = !example ? "SECTION" : key === "final" ? "FINALE" : key === "other" ? "EXTRA" : `UNIT ${key}`;
+            const openLabel = !example ? "Open section" : key === "final" ? "Open Set" : key === "other" ? "Open Coursework" : `Open Unit ${key}`;
             return (
               <article key={key} className={`ch-unit-card ${isOpen ? "is-open" : ""}`} style={{ "--unit-color": unitColor(key) } as CSSProperties}>
                 <header className="ch-unit-head">
-                  <span className="ch-unit-badge">{key === "final" ? <Check size={22} strokeWidth={3} aria-hidden="true" /> : key === "other" ? "+" : key.padStart(2, "0")}</span>
+                  <span className="ch-unit-badge">{!example ? String(keys.indexOf(key)+1).padStart(2,"0") : key === "final" ? <Check size={22} strokeWidth={3} aria-hidden="true" /> : key === "other" ? "+" : key.padStart(2, "0")}</span>
                   <div className="ch-unit-titles">
                     <span className="ch-kicker">{label}</span>
-                    <h3>{names[key] || `Unit ${key}`}</h3>
+                    <h3>{!example ? (chapters[0]?.title || assessments[0]?.title) : names[key] || `Unit ${key}`}</h3>
                   </div>
                   <span className="ch-unit-fraction"><b>{done}</b> / {count}</span>
                   {isOpen && <button ref={(node) => { closeButtons.current[key] = node; }} className="ch-unit-close" aria-label={`Close ${label.toLowerCase()}`} onClick={() => toggle(key)}><X size={16} /></button>}
                 </header>
-                <progress className="ch-unit-progress" aria-label={`${names[key] || key} progress`} value={done} max={count || 1} />
+                <progress className="ch-unit-progress" aria-label={`${!example ? (chapters[0]?.title || assessments[0]?.title) : names[key] || key} progress`} value={done} max={count || 1} />
                 {!isOpen ? (
                   <>
-                    <p className="ch-unit-meta">{chapters.length} chapter{chapters.length === 1 ? "" : "s"}</p>
+                    <p className="ch-unit-meta">{example ? `${chapters.length} chapter${chapters.length===1?"":"s"}` : `${count} part${count===1?"":"s"}`}</p>
                     <button ref={(node) => { openButtons.current[key] = node; }} className="ch-unit-open" aria-expanded={false} aria-controls={`unit-contents-${key}`} onClick={() => toggle(key)}>{openLabel}</button>
                   </>
                 ) : (

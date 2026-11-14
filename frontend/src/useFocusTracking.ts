@@ -1,4 +1,5 @@
 import {useEffect,useRef} from "react";
+import {readRoute} from "./navigation";
 import {csrfToken} from "./api";
 
 // Focus loss is an observation, not evidence of what the student did elsewhere.
@@ -7,12 +8,13 @@ export function useFocusTracking(lessonId:number|null,partId:number|null,enabled
  useEffect(()=>{
   if(!enabled || !lessonId)return;
   const tabId=crypto.randomUUID();
+  const courseId=readRoute().courseId;
   let away:{id:string;started:number;reason:"tab"|"window";hidden:boolean;partId:number|null}|null=null;
   let blurTimer:ReturnType<typeof setTimeout>|undefined;
   const send=(state:"away"|"hidden"|"back"|"end")=>{
    if(!away)return;
    void fetch(`/api/assignments/${lessonId}/focus/`,{method:"POST",credentials:"same-origin",keepalive:true,
-    headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken()},body:JSON.stringify({event_id:crypto.randomUUID(),episode_id:away.id,tab_id:tabId,state,reason:away.reason,
+    headers:{...(courseId?{"X-Trellis-Course":String(courseId)}:{}),"Content-Type":"application/json","X-CSRFToken":csrfToken()},body:JSON.stringify({event_id:crypto.randomUUID(),episode_id:away.id,tab_id:tabId,state,reason:away.reason,
      part_id:away.partId,elapsed_ms:Math.min(86400000,Math.max(0,Math.round(performance.now()-away.started)))})}).catch(()=>{});
   };
   const begin=(reason:"tab"|"window")=>{if(!away){away={id:crypto.randomUUID(),started:performance.now(),reason,hidden:reason==="tab",partId:currentPart.current};send("away");}};

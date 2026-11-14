@@ -33,10 +33,9 @@ NRPS_SCOPE = "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.r
 def staff_course(request):
     if not request.user.is_authenticated:
         raise PermissionDenied
-    membership = Membership.objects.filter(
-        user=request.user, active=True, role__in=["instructor", "head_ta", "ta"]
-    ).select_related("course").first()
-    if membership is None:
+    from .course_context import current_membership
+    membership = current_membership(request)
+    if membership.role not in {'instructor', 'head_ta', 'ta'}:
         raise PermissionDenied
     if request.session.get("student_view_course") == membership.course_id:
         raise PermissionDenied

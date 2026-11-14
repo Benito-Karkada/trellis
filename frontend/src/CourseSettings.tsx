@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { api, upload } from "./api";
 import CourseControls from "./CourseControls";
+import CanvasPublishing from "./CanvasPublishing";
+import CourseIdentity from "./CourseIdentity";
 import {EdDiscussionSettings} from "./EdDiscussion";
 import ApiAccess from "./ApiAccess";
 import SubmissionReview from "./SubmissionReview";
@@ -72,7 +74,7 @@ export default function CourseSettings({
   onBack: () => void;
   theme: "light" | "dark";
 }) {
-  const [tab, setTab] = useState<"enrollment" | "accommodations" | "quizzes" | "grading" | "api" | "review" | "integrations">(
+  const [tab, setTab] = useState<"course" | "canvas" | "enrollment" | "accommodations" | "quizzes" | "grading" | "api" | "review" | "integrations">(
       "enrollment",
     ),
     [members, setMembers] = useState<Member[]>([]),
@@ -161,7 +163,7 @@ export default function CourseSettings({
   }
   useEffect(() => {
     setNotice("");setError("");
-    if(tab==="review" || tab==="api" || tab==="grading" || tab==="integrations")return;
+    if(tab==="course" || tab==="canvas" || tab==="review" || tab==="api" || tab==="grading" || tab==="integrations")return;
     const loading=tab==="enrollment" ? loadRoster() : tab==="accommodations" ? loadAccommodations(activity) : loadQuizzes();
     loading.catch((e) => setError(e.message));
   }, [tab]);
@@ -313,7 +315,7 @@ export default function CourseSettings({
           <h1>Course settings</h1>
           <p>Instructors manage enrollment, accommodations, integrations, and course policies. TAs can edit course content and review student work.</p>
         </div>
-        <nav className="settings-tabs">
+        <nav className="settings-tabs"><button className={tab==="course"?"active":""} onClick={()=>setTab("course")}>Course details</button><button className={tab==="canvas"?"active":""} onClick={()=>setTab("canvas")}>Publish to Canvas</button>
           <button
             className={tab === "enrollment" ? "active" : ""}
             onClick={() => setTab("enrollment")}
@@ -344,7 +346,7 @@ export default function CourseSettings({
         {notice && <div className="notification">{notice}</div>}
         {loginMember && <LoginPasswordDialog member={loginMember} onSave={saveLogin} onClose={()=>setLoginMember(null)}/>}
         {createdLogin && <section className="login-created" role="status"><div><KeyRound size={21}/><strong>Login ready</strong><button aria-label="Dismiss login details" onClick={()=>setCreatedLogin(null)}><X size={18}/></button></div><p>Share these details with this person. No email has been sent.</p><dl><dt>Email</dt><dd>{createdLogin.email}</dd><dt>Password</dt><dd><code>{createdLogin.password}</code></dd></dl><button onClick={()=>navigator.clipboard.writeText(`Trellis\n${window.location.origin}/\nEmail: ${createdLogin.email}\nPassword: ${createdLogin.password}`)}><Copy size={16}/> Copy login details</button></section>}
-        {tab === "integrations" ? <EdDiscussionSettings/> : tab === "review" ? <SubmissionReview theme={theme}/> : tab === "api" ? <ApiAccess/> : tab === "grading" ? <CourseControls/> : tab === "enrollment" ? (
+        {tab === "course" ? <CourseIdentity/> : tab === "canvas" ? <CanvasPublishing/> : tab === "integrations" ? <EdDiscussionSettings/> : tab === "review" ? <SubmissionReview theme={theme}/> : tab === "api" ? <ApiAccess/> : tab === "grading" ? <CourseControls/> : tab === "enrollment" ? (
           <div className="settings-grid">
             {canManageLogins && <section className="settings-card enrollment-tools">
               <div className="card-title">

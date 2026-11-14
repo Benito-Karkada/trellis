@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_POST
-from .models import Membership
+from .models import Membership, Course
 from .course_settings import instructor_course, staff_course
 from .studio import json_body,require_authoring_access
 
@@ -25,6 +25,7 @@ def data(request):
 @transaction.atomic
 def save(request):
     course=instructor_course(request);require_authoring_access(request,course)
+    course=Course.objects.select_for_update().get(pk=course.pk)
     if sum(k in request.payload for k in ('assignment_id','feedback','canvas_course_id','student_id'))!=1:
         return JsonResponse({'error':'Save one settings section at a time.'},status=400)
     if 'assignment_id' in request.payload:
@@ -35,6 +36,13 @@ def save(request):
             return JsonResponse({'error':'Enter a valid date and time with a time zone.'},status=400)
         canvas_id=str(request.payload.get('canvas_assignment_id',lesson.metadata.get('canvas_assignment_id',''))).strip()
         if canvas_id and not canvas_id.isdigit():return JsonResponse({'error':'Canvas assignment ID must be numeric.'},status=400)
+        if 'canvas_assignment_id' in request.payload:
+            state=lesson.metadata.get('canvas_publish',{})
+            started=parse_datetime(state.get('started_at',''))
+            if state.get('status')=='publishing' and (not started or (timezone.now()-started).total_seconds()<60):
+                return JsonResponse({'error':'Wait for the current Canvas request to finish before changing its mapping.'},status=409)
+            if canvas_id:
+                lesson.metadata={**lesson.metadata,'canvas_publish':{**state,'status':'linked','reservation':'','error':''}}
         lesson.metadata={**lesson.metadata,'due_at':due.isoformat() if due else None,'canvas_assignment_id':canvas_id};lesson.save(update_fields=['metadata'])
     if 'feedback' in request.payload:
         feedback=request.payload['feedback']
@@ -44,6 +52,8 @@ def save(request):
     if 'canvas_course_id' in request.payload:
         value=str(request.payload['canvas_course_id']).strip()
         if value and not value.isdigit():return JsonResponse({'error':'Canvas course ID must be numeric.'},status=400)
+        if value!=course.canvas_context_id and any(l.metadata.get('canvas_assignment_id') or l.metadata.get('canvas_publish') for l in course.lesson_set.all()):
+            return JsonResponse({'error':'This course already has Canvas mappings. Keep its Canvas course ID.'},status=409)
         course.canvas_context_id=value
     if 'student_id' in request.payload:
         member=get_object_or_404(Membership,pk=request.payload['student_id'],course=course,role='student',active=True)
