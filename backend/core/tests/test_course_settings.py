@@ -11,6 +11,29 @@ class AccountTests(TestCase):
     def setUp(self):
         self.course = Course.objects.create(title="CS 1301", term="Fall")
 
+    def test_demo_accounts_sign_in_by_email_with_distinct_internal_usernames(self):
+        for username, email in [('studio-instructor', 'instructor@trellis.local'),
+                                ('student@trellis.local', 'student@trellis.local')]:
+            user = get_user_model().objects.create_user(username, email=email, password='trellis-demo-2026')
+            response = self.client.post('/api/auth/login/', {
+                'email': ' ' + email.upper() + ' ', 'password': 'trellis-demo-2026',
+            }, content_type='application/json')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+            self.client.post('/api/auth/logout/')
+
+    def test_email_login_rejects_wrong_password_inactive_and_ambiguous_accounts(self):
+        user = get_user_model().objects.create_user('legacy-name', email='user@example.edu', password='valid password 1301')
+        body = {'email':'user@example.edu', 'password':'wrong password'}
+        self.assertEqual(self.client.post('/api/auth/login/', body, content_type='application/json').status_code, 400)
+        body['password'] = 'valid password 1301'
+        user.is_active = False; user.save()
+        self.assertEqual(self.client.post('/api/auth/login/', body, content_type='application/json').status_code, 400)
+        user.is_active = True; user.save()
+        get_user_model().objects.create_user('other-name', email='USER@example.edu', password=body['password'])
+        self.assertEqual(self.client.post('/api/auth/login/', body, content_type='application/json').status_code, 400)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
     @override_settings(ALLOW_SELF_REGISTRATION=False)
     def test_closed_registration_cannot_create_or_claim_accounts(self):
         user = get_user_model().objects.create(username="invited@gatech.edu", email="invited@gatech.edu")

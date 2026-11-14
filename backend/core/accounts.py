@@ -7,6 +7,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
@@ -32,7 +33,17 @@ def sign_in(request):
         response = JsonResponse({"error": "Too many sign-in attempts. Please wait a few minutes and try again."}, status=429)
         response["Retry-After"] = str(retry)
         return response
-    user = authenticate(request, username=email, password=request.payload.get("password", ""))
+    # Imported/local accounts may retain a username different from their email.
+    # Resolve a unique identity, then let Django verify its password and status.
+    users = get_user_model()
+    matches = list(users.objects.filter(Q(email__iexact=email) | Q(username__iexact=email))[:2])
+    password = request.payload.get("password", "")
+    if len(matches) == 1:
+        user = authenticate(request, username=matches[0].get_username(), password=password)
+    else:
+        # Match the usual password-hashing cost without accepting an ambiguous email.
+        users().set_password(password if isinstance(password, str) else "")
+        user = None
     if user is None or not user.is_active:
         return JsonResponse({"error": "Email or password is incorrect."}, status=400)
     login(request, user)
