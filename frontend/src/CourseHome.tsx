@@ -1,4 +1,5 @@
 import BrandLogo from "./BrandLogo";
+import CourseHomeView from "./CourseHomeView";
 import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
@@ -175,6 +176,12 @@ export default function CourseHome({
   const courseLessons = visibleLessons.filter(l => l.metadata?.kind !== "programming_quiz"),
     quizzes = visibleLessons.filter(l => l.metadata?.kind === "programming_quiz");
   const open = (lesson:number, activity:number|null) => leave(() => onOpen(lesson,activity));
+  if (!editing) {
+  return <CourseHomeView title={title} lessons={courseLessons} quizzes={quizzes}
+    canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
+    onOpen={open} onGradebook={() => leave(onGradebook)} onSettings={() => leave(onSettings)}
+    onEditStructure={beginEditing} onSignOut={onSignOut} />;
+}
   return (
     <div className="home-shell">
       <header className="home-header">
