@@ -80,3 +80,9 @@ urlpatterns += [path("api/settings/ed-discussion/", ed_discussion.settings_data)
 
 from core import honorlock
 urlpatterns += [path("api/settings/quizzes/<int:pk>/honorlock/",honorlock.save_settings)]
+
+
+from core import visualization
+urlpatterns += [path("api/visualizations/", visualization.start),
+    path("api/visualizations/<uuid:pk>/", visualization.status),
+    path("api/visualizations/samples/<int:pk>/", visualization.sample_data)]

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 export type Route = {
-  page: "home" | "course" | "settings" | "gradebook";
+  page: "home" | "course" | "settings" | "gradebook" | "visualizer";
   lessonId: number | null;
   active: number | null;
   category: string;
@@ -15,20 +15,20 @@ export function readRoute(hash = window.location.hash): Route {
     const value = params.get(name);
     return value && /^\d+$/.test(value) && Number(value) > 0 ? Number(value) : null;
   };
-  const page = path === "/course" ? "course" : path === "/settings" ? "settings" : path === "/gradebook" ? "gradebook" : "home";
+  const page = path === "/visualizer" ? "visualizer" : path === "/course" ? "course" : path === "/settings" ? "settings" : path === "/gradebook" ? "gradebook" : "home";
   const mode = params.get("mode");
   return { ...home, page, lessonId: id("lesson"), active: id("activity"),
     category: params.get("category") || "content", mode: mode === "config" || mode === "preview" ? mode : "student" };
 }
 export function routeHref(route: Partial<Route>): string {
   const value = { ...home, ...route };
-  if (value.page !== "course") return "#/" + (value.page === "home" ? "" : value.page);
+  if (value.page !== "course" && value.page !== "visualizer") return "#/" + (value.page === "home" ? "" : value.page);
   const params = new URLSearchParams();
   if (value.lessonId) params.set("lesson", String(value.lessonId));
   if (value.active) params.set("activity", String(value.active));
   params.set("category", value.category);
   if (value.mode !== "student") params.set("mode", value.mode);
-  return "#/course?" + params.toString();
+  return `#/${value.page}?` + params.toString();
 }
 
 export function useNavigation() {

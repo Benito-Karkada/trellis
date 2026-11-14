@@ -63,6 +63,7 @@ export default function CourseHome({
   onGradebook,
   onRefresh,
   onSignOut,
+  onVisualize,
   resume,
 }: {
   title: string;
@@ -73,6 +74,7 @@ export default function CourseHome({
   onGradebook: () => void;
   onRefresh: () => Promise<unknown>;
   onSignOut: () => void;
+  onVisualize: () => void;
   resume?: {lesson_id:number;activity_id:number;lesson_title:string;activity_title:string;category:string} | null;
 }) {
   const [editing, setEditing] = useState(false),
@@ -180,7 +182,7 @@ export default function CourseHome({
   return <CourseHomeView title={title} lessons={courseLessons} quizzes={quizzes}
     canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
     onOpen={open} onGradebook={() => leave(onGradebook)} onSettings={() => leave(onSettings)}
-    onEditStructure={beginEditing} onSignOut={onSignOut} />;
+    onVisualize={onVisualize} onEditStructure={beginEditing} onSignOut={onSignOut} />;
 }
   return (
     <div className="home-shell">

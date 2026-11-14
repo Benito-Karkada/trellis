@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from .models import Revision, Workspace, ExecutionJob, ActivityProgress, Membership, Submission
+from .models import Revision, Workspace, ExecutionJob, ActivityProgress, Membership, Submission, VisualizationJob
 from .workspace_files import with_results_placeholder, results_unchanged, is_results_file
 from .studio import member, json_body, starter_files, valid_path, require_authoring_access
 from .services import require_staff
@@ -46,6 +46,8 @@ def enqueue(request,pk):
     # preview requests from different tabs. Reset takes this same lock first.
     get_user_model().objects.select_for_update().get(pk=request.user.pk)
     active = ExecutionJob.objects.filter(user=request.user, status__in=["pending", "running"]).first()
+    if not active:
+        active = VisualizationJob.objects.filter(user=request.user, status__in=["pending", "running"]).first()
     if active:
         return JsonResponse({"error": "Your code is already queued or running. Wait for it to finish before running or submitting again.",
                              "job_id": str(active.pk), "status": active.status}, status=409)
@@ -103,7 +105,14 @@ def claim(request):
     worker_auth(request)
     ExecutionJob.objects.filter(status="running",claimed_at__lt=timezone.now()-timedelta(minutes=5)).update(
         status="failed",result={"error":"Execution worker timed out. Please retry."})
+    VisualizationJob.objects.filter(status="running", claimed_at__lt=timezone.now()-timedelta(minutes=5)).update(
+        status="failed", result={"error": "The visualization timed out. Please try again."})
+    trace=VisualizationJob.objects.select_for_update(skip_locked=True).filter(status="pending").order_by("created_at").first()
     job=ExecutionJob.objects.select_for_update(skip_locked=True).filter(status="pending").order_by("created_at").first()
+    if trace and (not job or trace.created_at < job.created_at):
+        trace.status="running";trace.lease=secrets.token_hex(24);trace.claimed_at=timezone.now();trace.save()
+        return JsonResponse({"job":{"id":str(trace.pk),"lease":trace.lease,"operation":"visualize",
+            "files":trace.files,"source":trace.source,"stdin":trace.stdin}})
     if not job:return JsonResponse({"job":None})
     job.status="running";job.lease=secrets.token_hex(24);job.claimed_at=timezone.now();job.save()
     payload={"id":str(job.pk),"lease":job.lease,"operation":job.operation,"files":job.snapshot,
@@ -123,6 +132,15 @@ def claim(request):
 @transaction.atomic
 def complete(request,pk):
     worker_auth(request)
+    trace=VisualizationJob.objects.select_for_update().filter(pk=pk).first()
+    if trace:
+        if not secrets.compare_digest(request.payload.get("lease", ""), trace.lease):raise PermissionDenied
+        if trace.status=="completed":return JsonResponse({"ok":True})
+        if trace.status!="running":return JsonResponse({"error":"Expired visualization"},status=409)
+        result=request.payload.get("result",{})
+        if not isinstance(result,dict):return JsonResponse({"error":"Invalid result"},status=400)
+        trace.result=result;trace.status="failed" if "error" in result else "completed";trace.completed_at=timezone.now();trace.save()
+        return JsonResponse({"ok":True})
     job=get_object_or_404(ExecutionJob.objects.select_for_update(),pk=pk)
     if not secrets.compare_digest(request.payload.get("lease",""),job.lease):raise PermissionDenied
     if job.status=="completed":return JsonResponse({"ok":True})

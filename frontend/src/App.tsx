@@ -34,6 +34,7 @@ import {
   Users,
   Clock3,
   House,
+  Braces,
 } from "lucide-react";
 import WorkspaceDivider from "./WorkspaceDivider";
 import AuthScreen from "./AuthScreen";
@@ -41,6 +42,7 @@ import CourseSettings from "./CourseSettings";
 import CourseHome from "./CourseHome";
 import Gradebook from "./Gradebook";
 import { api } from "./api";
+const CodeVisualizer = lazy(() => import("./CodeVisualizer"));
 const EditorPane = lazy(() => import("./EditorPane"));
 type Node = {
   type: string;
@@ -110,6 +112,7 @@ type Outline = {
 };
 type File = { id?: number; path: string; visibility: string; text: string };
 type Detail = {
+  visualization_available?: boolean;
   ed_discussion_url?: string | null;
   reset_available?: boolean;
   native_practice?: boolean;
@@ -970,7 +973,7 @@ export default function App() {
   const authenticatedNow = () => {
     const destination=readRoute();
     clearAccountView();
-    if(destination.page==="course")updateRoute(destination);
+    if(destination.page==="course" || destination.page==="visualizer")updateRoute(destination);
     setOutlineLoading(true);
     setAuthenticated(true);
   };
@@ -1004,6 +1007,8 @@ export default function App() {
     );
   if (page === "gradebook")
     return <Gradebook theme={theme} onBack={() => setPage("home")} />;
+  if (page === "visualizer")
+    return <Suspense fallback={<div className="startup-shell" role="status">Opening code visualizer…</div>}><CodeVisualizer activity={active} onBack={()=>setPage(active && lessonId?"course":"home")}/></Suspense>;
   if (page === "home" && outline)
     return (
       <CourseHome
@@ -1012,6 +1017,7 @@ export default function App() {
         resume={outline.resume}
         canManage={staff}
         onSignOut={signOut}
+        onVisualize={() => updateRoute({page:"visualizer",active:null,lessonId:null})}
         onRefresh={refreshOutline}
         onSettings={() => setPage("settings")}
         onGradebook={() => setPage("gradebook")}
@@ -1527,6 +1533,7 @@ export default function App() {
                     <span>Use Preview to run this exercise.</span>
                   ) : (
                     <div>
+                      {detail?.revision === detail?.published_revision && lesson?.metadata?.kind !== "programming_quiz" && !sandbox && (detail?.visualization_available || (preview && executionResult?.passed)) && <button disabled={busy} onClick={()=>{if(leave())setPage("visualizer");}}><Braces size={16}/>Visualize sample</button>}
                       <button
                         disabled={
                           busy ||

@@ -50,3 +50,22 @@ class DockerTests(unittest.TestCase):
         source = "import os\nanswer = os.getuid() == 65534 and not os.path.exists('/var/run/docker.sock')"
         result = grade(source, Exercise((Case("isolation", "Isolation", True, target="answer"),)), self.executor)
         self.assertTrue(result["passed"])
+
+
+    def test_visualization_keeps_aliases_and_never_returns_a_grade(self):
+        observation = self.executor.run(RunRequest(
+            "first = [1, 2]\nsecond = first\nsecond.append(3)\nprint(first)", action="visualize"))
+        self.assertEqual(observation.status, "ok")
+        trace = observation.value
+        self.assertEqual(trace["stdout"], "[1, 2, 3]\n")
+        self.assertFalse(trace["truncated"])
+        variables = trace["steps"][-1]["frames"][0]["locals"]
+        self.assertEqual(variables["first"], variables["second"])
+        self.assertNotIn("score_fraction", trace)
+
+    def test_visualization_stops_infinite_loops_and_removes_the_container(self):
+        observation = self.executor.run(RunRequest("while True:\n    pass", action="visualize"))
+        self.assertTrue(observation.value["truncated"])
+        self.assertLessEqual(len(observation.value["steps"]), 220)
+        containers = subprocess.check_output(['docker', 'ps', '-aq', '--filter', 'name=cs1301-attempt-'], text=True)
+        self.assertEqual(containers.strip(), '')

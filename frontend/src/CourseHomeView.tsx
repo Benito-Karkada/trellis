@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, ClipboardList, Settings2 } from "lucide-react";
+import { ArrowRight, BookOpen, Braces, ClipboardList, Settings2 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import LogoutButton from "./LogoutButton";
 import UnitOverview from "./UnitOverview";
@@ -6,6 +6,7 @@ import HomeNotebook from "./HomeNotebook";
 import type { UpcomingItem } from "./UpcomingPanel";
 import { routeHref } from "./navigation";
 import "./homeRedesign.css";
+import "./visualization.css";
 
 type Part = { id: number; title: string; status: string; earned_points: string; maximum_points: string; metadata?: { kind?: string; category?: string } };
 type Lesson = { id: number; title: string; metadata?: { kind?: string; unit_number?: number; earned_points?: string; maximum_points?: string; activity_count?: number; completed_count?: number }; activities: Part[] };
@@ -15,7 +16,7 @@ type Resume = { lesson_id: number; activity_id: number; lesson_title: string; ac
 export default function CourseHomeView({
   title, lessons, quizzes, canManage, resume, busy, error, notice,
   upcoming, onToggleUpcoming,
-  onOpen, onGradebook, onSettings, onEditStructure, onSignOut,
+  onVisualize, onOpen, onGradebook, onSettings, onEditStructure, onSignOut,
 }: {
   title: string;
   lessons: Lesson[];
@@ -27,6 +28,7 @@ export default function CourseHomeView({
   notice: string;
   upcoming?: UpcomingItem[];
   onToggleUpcoming?: (id: UpcomingItem["id"], done: boolean) => void;
+  onVisualize: () => void;
   onOpen: (lesson: number, activity: number | null) => void;
   onGradebook: () => void;
   onSettings: () => void;
@@ -48,6 +50,7 @@ export default function CourseHomeView({
           <LogoutButton onConfirm={onSignOut} />
         </div>
       </header>
+      <nav className="ch-course-tabs" aria-label="Course tools"><span aria-current="page"><BookOpen size={17}/>Course</span><button onClick={onVisualize}><Braces size={18}/>Code visualizer</button></nav>
       {error && <div className="notification error" role="alert">{error}</div>}
       {notice && <div className="notification success" role="status">{notice}</div>}
       <div className="ch-body">

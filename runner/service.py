@@ -59,6 +59,12 @@ class BudgetExecutor:
 def execute_job(job, executor):
     try:
         bounded = BudgetExecutor(executor)
+        if job["operation"] == "visualize":
+            observation = bounded.run(RunRequest(source=job["source"], action="visualize",
+                files=job.get("files", {}), stdin=job.get("stdin", "")))
+            if isinstance(observation.value, dict) and "steps" in observation.value:
+                return {"trace": observation.value, "execution_status": observation.status}
+            return {"error": "The visualization could not complete. Check the program or try again."}
         source = job["files"][job["entrypoint"]]
         if job["operation"] == "run":
             observation = bounded.run(RunRequest(source=source, files=job["files"]))

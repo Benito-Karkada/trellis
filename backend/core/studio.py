@@ -192,6 +192,8 @@ def detail(request, pk):
     data['ed_discussion_url'] = student_link(activity)
     progress = ActivityProgress.objects.filter(user=request.user, activity=activity).first()
     data['earned_points'] = point_text(progress.score) if progress else '0'
+    from .visualization import unlocked, samples
+    data['visualization_available'] = unlocked(request, revision) and bool(samples(revision))
     from .hints import availability,solved_questions
     data['hints_available']=availability(revision)
     data['solved_questions']=solved_questions(revision,progress)

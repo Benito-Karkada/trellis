@@ -45,6 +45,14 @@ To verify submission, points, feedback replacement, and sample-answer release:
 docker compose exec -T backend python manage.py shell < scripts/smoke_execution.py
 ```
 
+## Code visualizer
+
+Open **Code visualizer** from the home screen to explore editable examples of loops, conditions, lists, dictionaries, tuples, functions, objects, search, sorting, and recursion. Build a trace, then use Play, previous/next, the step slider, and speed control to follow execution. The view shows the next line, variables, shared object references, collection contents, call frames, return values, and output.
+
+After a correct submission to a regular coding exercise, **Visualize sample** opens a read-only sample-answer walkthrough. Programming quizzes never expose this tool or their samples. Instructors can inspect regular published samples without earning credit first; student view follows student unlock rules.
+
+The visualizer uses the same local worker as Run/Submit. If you pulled this feature into an existing setup, apply `docker compose exec -T backend python manage.py migrate` and restart `sh scripts/start-worker.sh` to rebuild the sandbox and load the new worker code. It does not change scores, submissions, or saved work. See [visualizer behavior and limits](docs/CODE_VISUALIZER.md).
+
 ## Everyday development
 
 ```sh
