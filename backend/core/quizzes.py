@@ -1,4 +1,5 @@
 """Timed programming quiz lifecycle and staff configuration."""
+from .course_context import require_matching_context
 from datetime import timedelta
 from decimal import Decimal
 from django.core.exceptions import PermissionDenied
@@ -85,6 +86,7 @@ def start(request, pk):
         except (ValueError,UnicodeDecodeError):return JsonResponse({'error':'Expected a JSON object.'},status=400)
         if not isinstance(request.payload,dict):return JsonResponse({'error':'Expected a JSON object.'},status=400)
     quiz = get_object_or_404(Lesson.objects.select_for_update(), pk=pk, deleted_at=None, metadata__kind="programming_quiz")
+    require_matching_context(request, quiz.course_id)
     membership = Membership.objects.filter(user=request.user, course=quiz.course, active=True).first()
     if membership is None: raise PermissionDenied
     effective_student = membership.role == "student" or request.session.get("student_view_course") == quiz.course_id
@@ -118,6 +120,7 @@ def start(request, pk):
 def status(request, pk):
     if not request.user.is_authenticated:raise PermissionDenied
     quiz=get_object_or_404(Lesson,pk=pk,deleted_at=None,metadata__kind="programming_quiz")
+    require_matching_context(request, quiz.course_id)
     membership=Membership.objects.filter(user=request.user,course=quiz.course,active=True).first()
     if membership is None: raise PermissionDenied
     effective_student = membership.role == "student" or request.session.get("student_view_course") == quiz.course_id
@@ -152,6 +155,7 @@ def require_active_attempt(request, activity):
 def finish(request, pk):
     if not request.user.is_authenticated:raise PermissionDenied
     quiz = get_object_or_404(Lesson, pk=pk, deleted_at=None, metadata__kind="programming_quiz")
+    require_matching_context(request, quiz.course_id)
     membership = Membership.objects.filter(user=request.user, course=quiz.course, active=True).first()
     if membership is None: raise PermissionDenied
     attempt = get_object_or_404(QuizAttempt.objects.select_for_update(), membership=membership, lesson=quiz)

@@ -1,15 +1,52 @@
-export function csrfToken(){return document.cookie.split("; ").find(x=>x.startsWith("csrftoken="))?.split("=")[1]||""}
-
-export async function api(path:string,body?:unknown){
- const response=await fetch("/api/"+path,{credentials:"same-origin",...(body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken()},body:JSON.stringify(body)})});
- const data=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(data.error||`Request failed (${response.status}).`);
- return data;
+import { readRoute } from "./navigation";
+export function csrfToken() {
+  return (
+    document.cookie
+      .split("; ")
+      .find((x) => x.startsWith("csrftoken="))
+      ?.split("=")[1] || ""
+  );
 }
 
-export async function upload(path:string,body:FormData){
- const response=await fetch("/api/"+path,{method:"POST",credentials:"same-origin",headers:{"X-CSRFToken":csrfToken()},body});
- const data=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(data.error||`Request failed (${response.status}).`);
- return data;
+function courseHeaders(id: number | null): Record<string, string> {
+  return id ? { "X-Trellis-Course": String(id) } : {};
+}
+export async function api(
+  path: string,
+  body?: unknown,
+  courseId = readRoute().courseId,
+) {
+  const response = await fetch("/api/" + path, {
+    credentials: "same-origin",
+    headers: {
+      ...courseHeaders(courseId),
+      ...(body === undefined
+        ? {}
+        : { "Content-Type": "application/json", "X-CSRFToken": csrfToken() }),
+    },
+    ...(body === undefined
+      ? {}
+      : { method: "POST", body: JSON.stringify(body) }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw Error(data.error || `Request failed (${response.status}).`);
+  return data;
+}
+
+export async function upload(
+  path: string,
+  body: FormData,
+  courseId = readRoute().courseId,
+) {
+  const response = await fetch("/api/" + path, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { ...courseHeaders(courseId), "X-CSRFToken": csrfToken() },
+    body,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw Error(data.error || `Request failed (${response.status}).`);
+  return data;
 }

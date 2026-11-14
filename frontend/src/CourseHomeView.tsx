@@ -14,11 +14,15 @@ type Resume = { lesson_id: number; activity_id: number; lesson_title: string; ac
 
 /** The student view of the course home page (everything except the structure editor). */
 export default function CourseHomeView({
-  title, lessons, quizzes, canManage, resume, busy, error, notice,
+  title, code, term, example, onCourses, lessons, quizzes, canManage, resume, busy, error, notice,
   upcoming, onToggleUpcoming,
   onVisualize, onOpen, onGradebook, onSettings, onEditStructure, onSignOut,
 }: {
   title: string;
+  example: boolean;
+  code: string;
+  term: string;
+  onCourses: () => void;
   lessons: Lesson[];
   quizzes: Lesson[];
   canManage: boolean;
@@ -39,7 +43,7 @@ export default function CourseHomeView({
     <div className="ch-shell">
       <header className="ch-nav">
         <div className="brand"><BrandLogo /></div>
-        <div className="ch-nav-actions">
+        <div className="ch-nav-actions"><button className="ch-nav-link" onClick={onCourses}><BookOpen size={17}/>All courses</button>
           {canManage && (
             <>
               <button className="ch-nav-link" onClick={onGradebook}><ClipboardList size={17} />Gradebook</button>
@@ -56,7 +60,7 @@ export default function CourseHomeView({
       <div className="ch-body">
         <aside className="ch-panel">
           <div className="ch-hero">
-            <span className="ch-hero-kicker">CS 1301</span>
+            <span className="ch-hero-kicker">{[code,term].filter(Boolean).join(" · ") || "YOUR COURSE"}</span>
             <h1>{title}</h1>
             <p>Lessons, problem sets, and programming assessments.</p>
           </div>
@@ -80,7 +84,8 @@ export default function CourseHomeView({
           <HomeNotebook upcoming={upcoming} onToggleUpcoming={onToggleUpcoming} />
         </aside>
         <main className="ch-pages">
-          <UnitOverview lessons={lessons} quizzes={quizzes} onOpen={onOpen} />
+          {!lessons.length&&!quizzes.length&&<section className="library-empty"><BookOpen size={34}/><h2>Your course starts here</h2><p>{canManage?"Add your first section, then build lessons, videos, questions, and coding exercises.":"Your instructor is preparing this course. Check back for new content."}</p>{canManage&&<button className="primary" onClick={onEditStructure}>Add course content</button>}</section>}
+          <UnitOverview example={example} lessons={lessons} quizzes={quizzes} onOpen={onOpen} />
         </main>
       </div>
     </div>

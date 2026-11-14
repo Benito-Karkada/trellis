@@ -1,29 +1,61 @@
 import { useEffect, useRef, useState } from "react";
 
 export type Route = {
-  page: "home" | "course" | "settings" | "gradebook" | "visualizer";
+  page: "courses" | "home" | "course" | "settings" | "gradebook" | "visualizer";
+  courseId: number | null;
   lessonId: number | null;
   active: number | null;
   category: string;
   mode: "student" | "config" | "preview";
 };
-const home: Route = { page: "home", lessonId: null, active: null, category: "content", mode: "student" };
+const home: Route = {
+  page: "courses",
+  courseId: null,
+  lessonId: null,
+  active: null,
+  category: "content",
+  mode: "student",
+};
 export function readRoute(hash = window.location.hash): Route {
   const [path, query = ""] = hash.replace(/^#/, "").split("?");
   const params = new URLSearchParams(query);
   const id = (name: string) => {
     const value = params.get(name);
-    return value && /^\d+$/.test(value) && Number(value) > 0 ? Number(value) : null;
+    return value && /^\d+$/.test(value) && Number(value) > 0
+      ? Number(value)
+      : null;
   };
-  const page = path === "/visualizer" ? "visualizer" : path === "/course" ? "course" : path === "/settings" ? "settings" : path === "/gradebook" ? "gradebook" : "home";
+  const page =
+    path === "/courses" || !path || path === "/"
+      ? "courses"
+      : path === "/visualizer"
+        ? "visualizer"
+        : path === "/course"
+          ? "course"
+          : path === "/settings"
+            ? "settings"
+            : path === "/gradebook"
+              ? "gradebook"
+              : "home";
   const mode = params.get("mode");
-  return { ...home, page, lessonId: id("lesson"), active: id("activity"),
-    category: params.get("category") || "content", mode: mode === "config" || mode === "preview" ? mode : "student" };
+  return {
+    ...home,
+    page,
+    courseId: id("course"),
+    lessonId: id("lesson"),
+    active: id("activity"),
+    category: params.get("category") || "content",
+    mode: mode === "config" || mode === "preview" ? mode : "student",
+  };
 }
 export function routeHref(route: Partial<Route>): string {
-  const value = { ...home, ...route };
-  if (value.page !== "course" && value.page !== "visualizer") return "#/" + (value.page === "home" ? "" : value.page);
+  const value = { ...home, courseId: readRoute().courseId, ...route };
   const params = new URLSearchParams();
+  if (value.courseId) params.set("course", String(value.courseId));
+  if (value.page !== "course" && value.page !== "visualizer") {
+    const path = value.page === "courses" ? "" : value.page;
+    return "#/" + path + (params.size ? "?" + params.toString() : "");
+  }
   if (value.lessonId) params.set("lesson", String(value.lessonId));
   if (value.active) params.set("activity", String(value.active));
   params.set("category", value.category);
@@ -36,12 +68,17 @@ export function useNavigation() {
   const guard = useRef<() => boolean>(() => true);
   const index = useRef<number>(window.history.state?.trellisIndex ?? 0);
   useEffect(() => {
-    window.history.replaceState({ trellisIndex: index.current }, "", routeHref(readRoute()));
+    window.history.replaceState(
+      { trellisIndex: index.current },
+      "",
+      routeHref(readRoute()),
+    );
     const pop = (event: PopStateEvent) => {
       const nextIndex = event.state?.trellisIndex;
       if (nextIndex === index.current) return; // Return from a blocked Back/Forward.
       if (!guard.current()) {
-        if (typeof nextIndex === "number") window.history.go(index.current - nextIndex);
+        if (typeof nextIndex === "number")
+          window.history.go(index.current - nextIndex);
         return;
       }
       index.current = typeof nextIndex === "number" ? nextIndex : index.current;
@@ -56,6 +93,7 @@ export function useNavigation() {
     index.current += 1;
     window.history.pushState({ trellisIndex: index.current }, "", href);
   }, [route]);
-  const update = (next: Partial<Route>) => setState(old => ({ ...old, ...next }));
+  const update = (next: Partial<Route>) =>
+    setState((old) => ({ ...old, ...next }));
   return { route, update, guard };
 }

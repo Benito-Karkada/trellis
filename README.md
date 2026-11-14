@@ -27,6 +27,10 @@ Open **http://localhost:5173** and choose **Open local instructor workspace**. Y
 
 These accounts are for your local development setup only. The instructor can manage enrollment and create additional users from Course settings. No external service account is required.
 
+The **Courses** library lists each account's enrolled courses. Instructors can create additional courses, build sections and activities in the browser, and manage a separate roster and gradebook for each. CS 1301 remains the included proof of concept. New self-registered accounts wait for enrollment instead of automatically joining CS 1301.
+
+Use **Course settings → Publish to Canvas** to preview and create/update Canvas assignments with titles, published point totals, due dates, and direct Trellis links. Drafts are the default. Live publishing requires server-side Canvas credentials and the target course ID; no Canvas account is needed for local authoring or previews. See [courses and Canvas setup](docs/COURSES_AND_CANVAS.md).
+
 ## Enable Python Run / Submit
 
 The web app queues execution requests. A separate worker on your computer runs each program in a disposable Docker sandbox. Keep Docker Desktop running and start this worker in a **second terminal**, from the repository root:
@@ -73,7 +77,7 @@ Frontend and backend source are mounted into their development containers. Chang
 
 If ports 5173 or 8000 are in use, change `TRELLIS_FRONTEND_PORT` and `TRELLIS_BACKEND_PORT` in `.env`, recreate the containers, and restart the worker. The worker reads the local backend port automatically. The database, cache, and private files use this project's own Docker volumes; only the web and API ports bind to localhost.
 
-The bundled snapshot initializes a fresh local database once. Normal edits stay in your database and are not written back into the bundle. Edit normal course content in the instructor UI. Use Config to edit instructions, question JSON, files, and grading definitions; save and publish to update student content. The staff preview uses the student renderer. Course data and student work stay in the local database and private media volume, outside Git.
+The bundled snapshot initializes a fresh local database once. Normal edits stay in your database and are not written back into the bundle. Edit normal course content in the instructor UI. Config's content builder edits text, examples, videos, instructions, and native questions; Advanced JSON remains available for complex content. Edit files and grading definitions in Config, then save and publish to update student content. The staff preview uses the student renderer. Course data and student work stay in the local database and private media volume, outside Git.
 
 ## Checks
 

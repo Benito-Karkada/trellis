@@ -55,7 +55,7 @@ const PART_KINDS: { value: string; label: string }[] = [
 ];
 
 export default function CourseHome({
-  title,
+  title, code, term, example, onCourses,
   lessons,
   canManage,
   onOpen,
@@ -67,6 +67,10 @@ export default function CourseHome({
   resume,
 }: {
   title: string;
+  example: boolean;
+  code: string;
+  term: string;
+  onCourses: () => void;
   lessons: Lesson[];
   canManage: boolean;
   onOpen: (lesson: number, activity: number | null) => void;
@@ -179,7 +183,7 @@ export default function CourseHome({
     quizzes = visibleLessons.filter(l => l.metadata?.kind === "programming_quiz");
   const open = (lesson:number, activity:number|null) => leave(() => onOpen(lesson,activity));
   if (!editing) {
-  return <CourseHomeView title={title} lessons={courseLessons} quizzes={quizzes}
+  return <CourseHomeView title={title} example={example} code={code} term={term} onCourses={onCourses} lessons={courseLessons} quizzes={quizzes}
     canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
     onOpen={open} onGradebook={() => leave(onGradebook)} onSettings={() => leave(onSettings)}
     onVisualize={onVisualize} onEditStructure={beginEditing} onSignOut={onSignOut} />;
@@ -217,7 +221,7 @@ export default function CourseHome({
       </header>
       <main className="home-main">
         <section className="home-hero">
-          <span>CS 1301</span>
+          <span>{[code,term].filter(Boolean).join(" · ") || "Course builder"}</span>
           <h1>{title}</h1>
           <p>Lessons, problem sets, and programming assessments.</p>
         </section>

@@ -26,14 +26,14 @@ class AccountTests(TestCase):
         self.assertEqual(Membership.objects.count(), 0)
         self.assertFalse(self.client.get("/api/session/").json()["registration_open"])
 
-    def test_register_enrolls_and_login_uses_email(self):
+    def test_register_creates_unenrolled_account_and_login_uses_email(self):
         response = self.client.post("/api/auth/register/", {
             "email": " Student@Gatech.edu ", "password": "a useful password 1301",
             "first_name": "Ada", "last_name": "Lovelace",
         }, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         user = get_user_model().objects.get(username="student@gatech.edu")
-        self.assertTrue(Membership.objects.filter(user=user, course=self.course, role="student").exists())
+        self.assertFalse(Membership.objects.filter(user=user).exists())
         self.client.post("/api/auth/logout/")
         self.assertEqual(self.client.post("/api/auth/login/", {
             "email": "student@gatech.edu", "password": "a useful password 1301",
