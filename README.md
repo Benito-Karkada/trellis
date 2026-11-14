@@ -6,7 +6,7 @@
 
 A local course-building and learning platform. Instructors create lessons and exercises; students read, practice, write Python, and receive feedback in one workspace. The included CS 1301 course has 26 sections and 1,064 parts, including readings, videos, native questions, coding exercises, sandboxes, and all six programming quizzes.
 
-Course members can open discussions from the icon beside Course units on the course home.
+Course members can open discussions from the icon beside Course units on the course home. Discussion search combines exact text matching with local semantic embeddings, covers posts, shared answers, and followups, and stores vectors in PostgreSQL with pgvector. The local encoder does not require a cloud account.
 
 ## Start locally
 
@@ -89,6 +89,9 @@ docker compose exec -T backend python manage.py test core --noinput
 
 # TypeScript and frontend build.
 docker compose exec -T frontend npm run build
+
+# Live hybrid-search smoke check against local PostgreSQL and pgvector.
+docker compose exec -T backend python manage.py shell < scripts/smoke_discussion_search.py
 
 # Runner unit tests, after creating the local venv above.
 cd runner

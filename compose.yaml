@@ -2,7 +2,7 @@ name: trellis-hackathon
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: cs1301
       POSTGRES_USER: cs1301

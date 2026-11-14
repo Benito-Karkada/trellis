@@ -2,7 +2,8 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from core.models import Course, DiscussionReply, DiscussionThread, Membership
+from core.models import (Course, DiscussionReply, DiscussionSearchDocument,
+    DiscussionThread, Membership)
 from .test_studio import StudioTests
 
 
@@ -230,3 +231,102 @@ class DiscussionTests(TestCase):
         self.assertEqual(self.client.get(f"/api/discussions/{pk}/").status_code, 200)
         self.assertEqual(self.client.get("/api/discussions/meta/").json()["reading"]["required"], 0)
         self.assertEqual(self.post("/api/discussions/new/", {"title": "Question", "body": "Help"}).status_code, 201)
+
+    def test_hybrid_search_ranks_exact_and_semantic_post_matches(self):
+        exact = self.post("/api/discussions/new/", {
+            "title": "HW4 requirements.toml file", "body": "The configuration file is missing from Canvas."
+        }).json()["thread"]
+        semantic = self.post("/api/discussions/new/", {
+            "title": "Account access", "body": "Authentication credentials are rejected by the course site."
+        }).json()["thread"]
+        self.post("/api/discussions/new/", {
+            "title": "List practice", "body": "Use a for loop to total the values."
+        })
+
+        literal = self.client.get("/api/discussions/?q=requirements.toml").json()["threads"]
+        self.assertEqual([row["id"] for row in literal], [exact["id"]])
+        self.assertEqual(literal[0]["search_match"]["source"], "Post")
+        self.assertIn("requirements.toml", literal[0]["search_match"]["excerpt"])
+
+        related = self.client.get("/api/discussions/?q=I+cannot+log+in+with+my+password").json()["threads"]
+        self.assertEqual(related[0]["id"], semantic["id"])
+        self.assertGreater(related[0]["search_match"]["score"], 0)
+
+    def test_search_finds_answers_followups_and_nested_replies(self):
+        thread = self.post("/api/discussions/new/", {
+            "title": "General homework question", "body": "I need help with this week's work."
+        }).json()["thread"]
+        pk = thread["id"]
+        self.client.force_login(self.staff)
+        self.post(f"/api/discussions/{pk}/answer/", {
+            "kind": "instructor", "body": "Create the conda environment from requirements.toml."
+        })
+        self.client.force_login(self.student)
+        followup = self.post(f"/api/discussions/{pk}/replies/", {
+            "body": "The notebook kernel keeps restarting during training."
+        }).json()["reply"]
+        self.post(f"/api/discussions/{pk}/replies/", {
+            "body": "Reducing the epoch count fixed the runtime.", "parent_id": followup["id"]
+        })
+
+        answer_result = self.client.get("/api/discussions/?q=conda+requirements.toml").json()["threads"]
+        self.assertEqual(answer_result[0]["id"], pk)
+        self.assertEqual(answer_result[0]["search_match"]["source"], "Instructor answer")
+        followup_result = self.client.get("/api/discussions/?q=kernel+restarting").json()["threads"]
+        self.assertEqual(followup_result[0]["search_match"]["source"], "Followup")
+        nested_result = self.client.get("/api/discussions/?q=epoch+count").json()["threads"]
+        self.assertEqual(nested_result[0]["search_match"]["source"], "Followup reply")
+        self.assertEqual(DiscussionSearchDocument.objects.filter(thread_id=pk).count(), 4)
+
+    def test_search_respects_private_posts_courses_and_filters(self):
+        private = self.post("/api/discussions/new/", {
+            "title": "Private accommodation", "body": "My unique quasar deadline request.", "visibility": "private"
+        }).json()["thread"]
+        public = self.post("/api/discussions/new/", {
+            "title": "Public deadline", "body": "The quasar project deadline is Friday."
+        }).json()["thread"]
+        other_course = Course.objects.create(title="Other search course", term="Pilot")
+        Membership.objects.create(course=other_course, user=self.student, role="student")
+        selected = {"HTTP_X_TRELLIS_COURSE": str(other_course.pk)}
+        other = self.client.post("/api/discussions/new/", {
+            "title": "Other course quasar", "body": "This must stay on the other board."
+        }, content_type="application/json", **selected).json()["thread"]
+
+        primary = self.client.get("/api/discussions/?q=quasar").json()["threads"]
+        self.assertEqual({row["id"] for row in primary}, {private["id"], public["id"]})
+        self.assertNotIn(other["id"], {row["id"] for row in primary})
+        mine = self.client.get("/api/discussions/?q=quasar&filter=mine").json()["threads"]
+        self.assertEqual({row["id"] for row in mine}, {private["id"], public["id"]})
+
+        classmate = get_user_model().objects.create_user("search-classmate")
+        Membership.objects.create(course=self.course, user=classmate, role="student")
+        self.client.force_login(classmate)
+        classmate_rows = self.client.get("/api/discussions/?q=quasar").json()["threads"]
+        self.assertEqual([row["id"] for row in classmate_rows], [public["id"]])
+
+        self.client.force_login(self.staff)
+        staff_rows = self.client.get("/api/discussions/?q=quasar").json()["threads"]
+        self.assertEqual({row["id"] for row in staff_rows}, {private["id"], public["id"]})
+
+    def test_search_reindexes_edits_and_removes_deleted_followups(self):
+        thread = self.post("/api/discussions/new/", {
+            "title": "Recursion question", "body": "Where does the recursive base case go?"
+        }).json()["thread"]
+        pk = thread["id"]
+        self.assertEqual(self.client.get("/api/discussions/?q=recursive+base+case").json()["threads"][0]["id"], pk)
+        edited = self.post(f"/api/discussions/{pk}/edit/", {
+            "title": "Dictionary question", "body": "How do mapping keys and values work?", "folder_ids": []
+        })
+        self.assertEqual(edited.status_code, 200)
+        self.assertEqual(self.client.get("/api/discussions/?q=recursive+base+case").json()["threads"], [])
+        self.assertEqual(self.client.get("/api/discussions/?q=mapping+keys").json()["threads"][0]["id"], pk)
+
+        followup = self.post(f"/api/discussions/{pk}/replies/", {
+            "body": "The unique zephyr sentinel appears here."
+        }).json()["reply"]
+        self.assertEqual(self.client.get("/api/discussions/?q=zephyr+sentinel").json()["threads"][0]["id"], pk)
+        self.assertEqual(self.post(f'/api/discussions/replies/{followup["id"]}/action/', {
+            "action": "delete", "value": True
+        }).status_code, 200)
+        self.assertEqual(self.client.get("/api/discussions/?q=zephyr+sentinel").json()["threads"], [])
+        self.assertFalse(DiscussionSearchDocument.objects.filter(content_type="followup", object_id=followup["id"]).exists())

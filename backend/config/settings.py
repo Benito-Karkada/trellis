@@ -27,3 +27,5 @@ USE_TZ = True
 STATIC_URL = "static/"
 MEDIA_ROOT = BASE_DIR / "private-media"  # Never served through a public media route.
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+DISCUSSION_SEARCH_ASYNC = os.environ.get("DISCUSSION_SEARCH_ASYNC", "0") == "1"
+DISCUSSION_EMBEDDING_PROVIDER = os.environ.get("DISCUSSION_EMBEDDING_PROVIDER", "local")

@@ -131,6 +131,31 @@ class DiscussionAnswer(models.Model):
         constraints = [models.UniqueConstraint(fields=["thread", "kind"], name="unique_discussion_answer_kind")]
 
 
+class DiscussionSearchDocument(models.Model):
+    """One searchable unit from a discussion thread.
+
+    Embeddings are stored as their pgvector literal so the same migration and
+    model also work in the SQLite test environment. PostgreSQL casts this value
+    to vector for cosine ordering; SQLite uses the exact Python fallback.
+    """
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="discussion_search_documents")
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="search_documents")
+    content_type = models.CharField(max_length=12, choices=[("post", "Post"), ("answer", "Answer"), ("followup", "Followup")])
+    object_id = models.PositiveBigIntegerField()
+    source_label = models.CharField(max_length=40)
+    content = models.TextField(max_length=20200)
+    embedding = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "content_type", "object_id"], name="unique_discussion_search_document")]
+        indexes = [
+            models.Index(fields=["course", "thread"], name="discussion_search_course_idx"),
+            models.Index(fields=["content_type", "object_id"], name="discussion_search_object_idx"),
+        ]
+
+
 class DiscussionPostRevision(models.Model):
     thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="revisions")
     version = models.PositiveIntegerField()

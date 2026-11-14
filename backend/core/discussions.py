@@ -4,13 +4,14 @@ from io import StringIO
 from pathlib import Path
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, When
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .course_context import current_membership
+from .discussion_search import schedule_thread_index, search_discussions
 from .models import (DiscussionAnswer, DiscussionAttachment, DiscussionBoardSettings, DiscussionDraft, DiscussionFolder, DiscussionPostRevision,
     DiscussionPollOption, DiscussionPollVote, DiscussionReply, DiscussionReplyLike,
     DiscussionThread, DiscussionThreadState, Membership)
@@ -79,7 +80,7 @@ def nonnegative(value):
     return result if 0 <= result <= 100000 else None
 
 
-def thread_data(thread, member, staff, state=None):
+def thread_data(thread, member, staff, state=None, search_match=None):
     state = state or DiscussionThreadState(thread=thread, membership=member)
     answers = {answer.kind: answer for answer in thread.answers.all()}
     visible_name = display_author(thread.author_label, thread.author, thread.anonymous, member, staff)
@@ -100,7 +101,9 @@ def thread_data(thread, member, staff, state=None):
         "student_answer_endorsed": bool(answers.get("student") and answers["student"].endorsed),
         "read": bool(state.read_at and state.read_at >= thread.updated_at),
         "bookmarked": state.bookmarked, "following": state.following,
-        "archived": state.archived, "liked": state.liked}
+        "archived": state.archived, "liked": state.liked,
+        "search_match": ({"source": search_match.source, "excerpt": search_match.excerpt,
+            "score": round(search_match.score, 4)} if search_match else None)}
 
 
 def annotated(query):
@@ -209,7 +212,6 @@ def list_threads(request):
     if offset is None: return JsonResponse({"error": "Invalid discussion offset."}, status=400)
     query = visible_threads(member, staff)
     search = request.GET.get("q", "").strip()[:100]
-    if search: query = query.filter(Q(title__icontains=search) | Q(body__icontains=search) | Q(folders__name__icontains=search)).distinct()
     folder = request.GET.get("folder")
     if folder:
         folder_id = nonnegative(folder)
@@ -236,13 +238,23 @@ def list_threads(request):
     elif choice != "all": return JsonResponse({"error": "Invalid discussion filter."}, status=400)
     if choice != "archived": query = query.filter(is_archived=False)
     sort = request.GET.get("sort", "recent")
-    if sort == "newest": query = query.order_by("-created_at", "-pk")
+    if sort not in {"recent", "newest", "oldest"}: return JsonResponse({"error": "Invalid sort order."}, status=400)
+    matches = []
+    if search:
+        candidate_ids = list(query.values_list("pk", flat=True).distinct())
+        matches = search_discussions(search, member.course_id, candidate_ids)
+        ranked_ids = [match.thread_id for match in matches]
+        query = query.filter(pk__in=ranked_ids)
+        if ranked_ids:
+            query = query.order_by(Case(*[When(pk=pk, then=position) for position, pk in enumerate(ranked_ids)],
+                output_field=IntegerField()))
+    elif sort == "newest": query = query.order_by("-created_at", "-pk")
     elif sort == "oldest": query = query.order_by("created_at", "pk")
-    elif sort == "recent": query = query.order_by("-pinned", "-reading_list", "-updated_at", "-pk")
-    else: return JsonResponse({"error": "Invalid sort order."}, status=400)
+    else: query = query.order_by("-pinned", "-reading_list", "-updated_at", "-pk")
     rows = list(annotated(query)[offset:offset + 31])
     states = {row.thread_id: row for row in DiscussionThreadState.objects.filter(membership=member, thread_id__in=[thread.pk for thread in rows])}
-    return JsonResponse({"threads": [thread_data(row, member, staff, states.get(row.pk)) for row in rows[:30]], "has_more": len(rows) > 30})
+    match_map = {match.thread_id: match for match in matches}
+    return JsonResponse({"threads": [thread_data(row, member, staff, states.get(row.pk), match_map.get(row.pk)) for row in rows[:30]], "has_more": len(rows) > 30})
 
 
 def selected_folders(payload, member, required):
@@ -285,6 +297,7 @@ def create_thread(request):
         editor_label=author_name(member))
     for position, label in enumerate(options): DiscussionPollOption.objects.create(thread=thread, label=label.strip(), position=position)
     DiscussionDraft.objects.filter(course=member.course, author=member).delete()
+    schedule_thread_index(thread.pk)
     thread.reply_count = thread.unresolved_count = thread.view_count = thread.like_count = 0
     thread.history_count = 1
     return JsonResponse({"thread": thread_data(thread, member, staff)}, status=201)
@@ -380,6 +393,7 @@ def create_reply(request, pk):
     reply = DiscussionReply.objects.create(thread=thread, parent=parent, author=member,
         author_label=author_name(member), body=payload["body"].strip(), anonymous=anonymous)
     thread.save(update_fields=["updated_at"]); reply.like_count = 0
+    schedule_thread_index(thread.pk)
     return JsonResponse({"reply": reply_data(reply, member, staff)}, status=201)
 
 
@@ -394,6 +408,7 @@ def save_answer(request, pk):
     answer, _ = DiscussionAnswer.objects.update_or_create(thread=thread, kind=kind,
         defaults={"body": body.strip(), "last_editor": member, "last_editor_label": author_name(member)})
     thread.save(update_fields=["updated_at"])
+    schedule_thread_index(thread.pk)
     return JsonResponse({"answer": {"body": answer.body, "author": answer.last_editor_label,
         "endorsed": answer.endorsed, "updated_at": answer.updated_at.isoformat()}})
 
@@ -456,6 +471,7 @@ def edit_thread(request, pk):
     version = (thread.revisions.order_by("-version").values_list("version", flat=True).first() or 0) + 1
     DiscussionPostRevision.objects.create(thread=thread, version=version, title=thread.title,
         body=thread.body, editor_mode=thread.editor_mode, editor_label=author_name(member))
+    schedule_thread_index(thread.pk)
     return JsonResponse({"ok": True})
 
 
@@ -480,6 +496,7 @@ def history(request, pk):
 def delete_thread(request, pk):
     member = require_staff(request); thread = visible_thread(request, pk, member)
     thread.deleted_at = timezone.now(); thread.save(update_fields=["deleted_at"])
+    schedule_thread_index(thread.pk)
     return JsonResponse({"ok": True})
 
 
@@ -501,7 +518,9 @@ def reply_action(request, pk):
         reply.resolved = value; reply.save(update_fields=["resolved"])
     elif action == "delete":
         if not (staff or reply.author_id == member.pk): raise PermissionDenied
-        if value: reply.deleted_at = timezone.now(); reply.save(update_fields=["deleted_at"])
+        if value:
+            reply.deleted_at = timezone.now(); reply.save(update_fields=["deleted_at"])
+            schedule_thread_index(reply.thread_id)
     else: return JsonResponse({"error": "Unknown followup action."}, status=400)
     return JsonResponse({"ok": True})
 
