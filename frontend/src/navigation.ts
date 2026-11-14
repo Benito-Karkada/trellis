@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 export type Route = {
-  page: "courses" | "home" | "course" | "settings" | "gradebook" | "visualizer";
+  page: "courses" | "home" | "course" | "settings" | "gradebook" | "visualizer" | "discussions";
   courseId: number | null;
   lessonId: number | null;
   active: number | null;
+  post: number | null;
+  followup: number | null;
   category: string;
   mode: "student" | "config" | "preview";
 };
@@ -13,6 +15,8 @@ const home: Route = {
   courseId: null,
   lessonId: null,
   active: null,
+  post: null,
+  followup: null,
   category: "content",
   mode: "student",
 };
@@ -36,6 +40,8 @@ export function readRoute(hash = window.location.hash): Route {
             ? "settings"
             : path === "/gradebook"
               ? "gradebook"
+              : path === "/discussions"
+                ? "discussions"
               : "home";
   const mode = params.get("mode");
   return {
@@ -44,6 +50,8 @@ export function readRoute(hash = window.location.hash): Route {
     courseId: id("course"),
     lessonId: id("lesson"),
     active: id("activity"),
+    post: id("post"),
+    followup: id("followup"),
     category: params.get("category") || "content",
     mode: mode === "config" || mode === "preview" ? mode : "student",
   };
@@ -52,6 +60,11 @@ export function routeHref(route: Partial<Route>): string {
   const value = { ...home, courseId: readRoute().courseId, ...route };
   const params = new URLSearchParams();
   if (value.courseId) params.set("course", String(value.courseId));
+  if (value.page === "discussions") {
+    if (value.post) params.set("post", String(value.post));
+    if (value.post && value.followup) params.set("followup", String(value.followup));
+    return "#/discussions" + (params.size ? "?" + params.toString() : "");
+  }
   if (value.page !== "course" && value.page !== "visualizer") {
     const path = value.page === "courses" ? "" : value.page;
     return "#/" + path + (params.size ? "?" + params.toString() : "");

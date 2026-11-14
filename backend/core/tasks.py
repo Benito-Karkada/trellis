@@ -4,6 +4,13 @@ from django.utils import timezone
 from celery import shared_task
 from .models import GradeEvent
 
+
+@shared_task
+def refresh_discussion_search(thread_id):
+    """Generate all search documents for a post outside the web request."""
+    from .discussion_search import refresh_thread_index
+    refresh_thread_index(thread_id)
+
 @shared_task(bind=True, max_retries=10)
 def pass_grade_to_canvas(self, grade_event_id):
     """Event-driven AGS handoff. The OAuth/HTTP adapter is intentionally pending."""

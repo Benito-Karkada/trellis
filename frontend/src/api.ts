@@ -50,3 +50,26 @@ export async function upload(
     throw Error(data.error || `Request failed (${response.status}).`);
   return data;
 }
+
+export async function download(
+  path: string,
+  filename: string,
+  courseId = readRoute().courseId,
+) {
+  const response = await fetch("/api/" + path, {
+    credentials: "same-origin",
+    headers: courseHeaders(courseId),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw Error(data.error || `Request failed (${response.status}).`);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

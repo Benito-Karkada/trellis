@@ -34,6 +34,187 @@ class Membership(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["course", "user"], name="unique_membership")]
 
+
+class DiscussionThread(models.Model):
+    class Kind(models.TextChoices):
+        QUESTION = "question", "Question"
+        NOTE = "note", "Note"
+        POLL = "poll", "Poll"
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="discussion_threads")
+    author = models.ForeignKey(Membership, null=True, on_delete=models.SET_NULL)
+    author_label = models.CharField(max_length=150, blank=True)
+    title = models.CharField(max_length=160)
+    body = models.TextField(max_length=10000)
+    editor_mode = models.CharField(max_length=12, choices=[("formatted", "Formatted"), ("plain", "Plain text"), ("markdown", "Markdown")], default="formatted")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.QUESTION)
+    visibility = models.CharField(max_length=12, choices=[("public", "Class"), ("private", "Instructors")], default="public")
+    anonymous = models.CharField(max_length=12, choices=[("none", "Named"), ("classmates", "Anonymous to classmates"), ("everyone", "Anonymous to everyone")], default="none")
+    pinned = models.BooleanField(default=False)
+    reading_list = models.BooleanField(default=False)
+    required_reading = models.BooleanField(default=False)
+    locked = models.BooleanField(default=False)
+    endorsed = models.BooleanField(default=False)
+    history_hidden = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    folders = models.ManyToManyField("DiscussionFolder", blank=True, related_name="threads")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["course", "-updated_at"], name="discussion_recent_idx")]
+
+
+class DiscussionReply(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="replies")
+    author = models.ForeignKey(Membership, null=True, on_delete=models.SET_NULL)
+    author_label = models.CharField(max_length=150, blank=True)
+    body = models.TextField(max_length=10000)
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    resolved = models.BooleanField(default=False)
+    anonymous = models.CharField(max_length=12, choices=[("none", "Named"), ("classmates", "Anonymous to classmates"), ("everyone", "Anonymous to everyone")], default="none")
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class DiscussionBoardSettings(models.Model):
+    course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name="discussion_settings")
+    allow_student_posts = models.BooleanField(default=True)
+    allow_student_notes = models.BooleanField(default=True)
+    allow_student_polls = models.BooleanField(default=True)
+    allow_anonymous = models.BooleanField(default=True)
+    allow_anonymous_to_staff = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=True)
+    allow_student_answers = models.BooleanField(default=True)
+    require_folder = models.BooleanField(default=False)
+    reading_list_enabled = models.BooleanField(default=True)
+    require_reading_before_posting = models.BooleanField(default=False)
+
+
+class DiscussionDraft(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    author = models.ForeignKey(Membership, on_delete=models.CASCADE)
+    title = models.CharField(max_length=160, blank=True)
+    body = models.TextField(max_length=10000, blank=True)
+    editor_mode = models.CharField(max_length=12, default="formatted")
+    kind = models.CharField(max_length=12, choices=DiscussionThread.Kind.choices, default=DiscussionThread.Kind.QUESTION)
+    visibility = models.CharField(max_length=12, default="public")
+    anonymous = models.CharField(max_length=12, default="none")
+    folder_ids = models.JSONField(default=list)
+    options = models.JSONField(default=list)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["course", "author"], name="unique_discussion_draft")]
+
+
+class DiscussionFolder(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="discussion_folders")
+    name = models.CharField(max_length=60)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["course", "name"], name="unique_discussion_folder")]
+        ordering = ["position", "id"]
+
+
+class DiscussionAnswer(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="answers")
+    kind = models.CharField(max_length=12, choices=[("student", "Students"), ("instructor", "Instructors")])
+    body = models.TextField(max_length=10000)
+    last_editor = models.ForeignKey(Membership, null=True, on_delete=models.SET_NULL)
+    last_editor_label = models.CharField(max_length=150, blank=True)
+    endorsed = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "kind"], name="unique_discussion_answer_kind")]
+
+
+class DiscussionSearchDocument(models.Model):
+    """One searchable unit from a discussion thread.
+
+    Embeddings are stored as their pgvector literal so the same migration and
+    model also work in the SQLite test environment. PostgreSQL casts this value
+    to vector for cosine ordering; SQLite uses the exact Python fallback.
+    """
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="discussion_search_documents")
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="search_documents")
+    content_type = models.CharField(max_length=12, choices=[("post", "Post"), ("answer", "Answer"), ("followup", "Followup")])
+    object_id = models.PositiveBigIntegerField()
+    source_label = models.CharField(max_length=40)
+    content = models.TextField(max_length=20200)
+    embedding = models.TextField()
+    content_hash = models.CharField(max_length=64)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "content_type", "object_id"], name="unique_discussion_search_document")]
+        indexes = [
+            models.Index(fields=["course", "thread"], name="discussion_search_course_idx"),
+            models.Index(fields=["content_type", "object_id"], name="discussion_search_object_idx"),
+        ]
+
+
+class DiscussionPostRevision(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="revisions")
+    version = models.PositiveIntegerField()
+    title = models.CharField(max_length=160)
+    body = models.TextField(max_length=10000)
+    editor_mode = models.CharField(max_length=12, default="formatted")
+    editor_label = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "version"], name="unique_discussion_post_revision")]
+
+
+class DiscussionAttachment(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="attachments")
+    reply = models.ForeignKey(DiscussionReply, null=True, blank=True, on_delete=models.CASCADE, related_name="attachments")
+    uploader = models.ForeignKey(Membership, null=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=120)
+    blob = models.FileField(upload_to="discussion-attachments/%Y/%m/")
+    size = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+
+class DiscussionThreadState(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="member_states")
+    membership = models.ForeignKey(Membership, on_delete=models.CASCADE)
+    read_at = models.DateTimeField(null=True, blank=True)
+    bookmarked = models.BooleanField(default=False)
+    following = models.BooleanField(default=False)
+    archived = models.BooleanField(default=False)
+    liked = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "membership"], name="unique_discussion_thread_state")]
+
+
+class DiscussionReplyLike(models.Model):
+    reply = models.ForeignKey(DiscussionReply, on_delete=models.CASCADE, related_name="likes")
+    membership = models.ForeignKey(Membership, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["reply", "membership"], name="unique_discussion_reply_like")]
+
+
+class DiscussionPollOption(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="poll_options")
+    label = models.CharField(max_length=240)
+    position = models.PositiveIntegerField(default=0)
+
+
+class DiscussionPollVote(models.Model):
+    thread = models.ForeignKey(DiscussionThread, on_delete=models.CASCADE, related_name="poll_votes")
+    option = models.ForeignKey(DiscussionPollOption, on_delete=models.CASCADE, related_name="votes")
+    membership = models.ForeignKey(Membership, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["thread", "membership"], name="unique_discussion_poll_vote")]
+
 class LTIRegistration(models.Model):
     issuer = models.URLField()
     client_id = models.CharField(max_length=255)
