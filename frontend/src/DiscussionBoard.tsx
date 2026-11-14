@@ -110,13 +110,6 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
   }, []);
   useEffect(() => { void reloadMeta().catch((failure: Error) => setError(failure.message)); }, [reloadMeta]);
   useEffect(() => { void api("discussions/draft/").then(data => setSavedDraft(data.draft)).catch((failure: Error) => setError(failure.message)); }, []);
-  useEffect(() => {
-    const nextQuery = search.trim();
-    if (!nextQuery) { setQuery(""); return; }
-    const timer = window.setTimeout(() => setQuery(nextQuery), 300);
-    return () => window.clearTimeout(timer);
-  }, [search]);
-
   const feedPath = useCallback((offset = 0) => {
     const params = new URLSearchParams({ filter, sort, offset: String(offset) });
     if (query) params.set("q", query);
@@ -279,7 +272,7 @@ export default function DiscussionBoard({ course, selectedPost, onSelectPost, on
 
     {(tab === "qa" || tab === "resources") ? <div className="db-workspace">
       <aside className="db-feed">
-        <div className="db-feed-actions"><button className="db-new" disabled={!canPost} onClick={() => openComposer()}><Plus size={17} /> New post</button><div className="db-search-field" role="search" onClick={() => searchRef.current?.focus()}><Search size={17} aria-hidden="true" /><input ref={searchRef} type="search" aria-label="Search posts, answers, and followups" placeholder="Search posts, answers, and followups…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button type="button" className="db-search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setQuery(""); }}>×</button>}</div></div>
+        <div className="db-feed-actions"><button className="db-new" disabled={!canPost} onClick={() => openComposer()}><Plus size={17} /> New post</button><form className="db-search-field" role="search" onSubmit={event => { event.preventDefault(); setQuery(search.trim()); }} onClick={() => searchRef.current?.focus()}><Search size={17} aria-hidden="true" /><input ref={searchRef} type="search" aria-label="Search posts, answers, and followups" placeholder="Search posts, answers, and followups…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button type="button" className="db-search-clear" aria-label="Clear search" onClick={() => { setSearch(""); setQuery(""); }}>×</button>}</form></div>
         {savedDraft && <button className="db-resume-draft" onClick={() => { setTab("qa"); openComposer(undefined, savedDraft); }}>Resume saved draft <span>{date(savedDraft.updated_at || new Date().toISOString())}</span></button>}
         <div className="db-feed-controls"><Filter size={16} /><DiscussionSelect label="Filter posts" compact value={filter} options={filters.map(row => ({ value: row.id, label: row.label }))} onChange={setFilter} />{query ? <span className="db-relevance-sort">Best matches</span> : <DiscussionSelect label="Sort posts" compact value={sort} options={[{value:"recent",label:"Recently active"},{value:"newest",label:"Newest"},{value:"oldest",label:"Oldest"}]} onChange={setSort} />}</div>
         <div className="db-feed-scroll">{loading ? <p className="db-empty">Loading posts…</p> : threads.length === 0 ? <p className="db-empty">No posts match this view. {canPost ? "Start a new post or choose another filter." : "Try another filter."}</p> : threads.map((row, index) =>
