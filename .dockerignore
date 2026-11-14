@@ -1,0 +1,10 @@
+**
+!backend/
+!backend/**
+!runner/
+!runner/grading/
+!runner/grading/**
+backend/private-media/
+backend/**/__pycache__/
+backend/*.sqlite3
+runner/**/__pycache__/

@@ -1,9 +1,6 @@
 # Trellis grading
 
-The platform uses a new implementation under runner/grading. It does not import,
-copy, or execute Phineas, Program, Utility, Ferb, or Vocareum grading packages.
-Legacy files remain migration references. Their authorship and licensing have not
-been established; this project makes no ownership claim about them.
+The grading engine in `runner/grading` uses versioned JSON test definitions and disposable local Docker containers.
 
 ## Responsibilities
 
@@ -28,12 +25,6 @@ variable's value. For example, `action: "variable_type"`, `target: "count"`,
 named `int`. Missing variables receive explicit feedback. Stdout comparisons
 remain exact unless a case explicitly sets `strip_output: true`, which strips
 only leading/trailing whitespace and preserves spacing within the output.
-
-The archive preparer recognizes literal `expected_variables` type declarations
-and a literal expected output without importing or running the legacy grader.
-Unrecognized patterns remain flagged for review rather than receiving fake tests.
-`scripts/repair_type_exercise.py` can publish a reviewed conversion through the
-same staff authoring APIs as the browser, preserving the old revision and rubric.
 
 ## Local verification
 
@@ -99,27 +90,9 @@ local development execution boundary, not a claim of production multi-tenant
 security. Deploy the controller separately from the app server; never mount a
 Docker socket into the web or Celery containers.
 
-Authenticated queued Run/Submit jobs, result validation, workspace feedback/sample updates, staff-copy test runs, and API grader editing are implemented. See [native grader uploads](NATIVE_GRADER_UPLOADS.md) for conversion status, local validation and the resumable API upload/test/publish workflow. Legacy class/file/source-check patterns outside the native format remain explicit review items; they are not silently removed.
+Authenticated queued Run/Submit jobs, result validation, workspace feedback/sample updates, staff-copy test runs, and API grader editing are implemented. See [the staff REST API](REST_API.md) for editing and testing JSON grading definitions.
 
 
-### Coding instructions and public local tests
+### Coding instructions and local examples
 
-Coding prompts are normalized by `core.coding_content.clean_prompt`: repeated
-prose and generic “add your code here” placeholders are removed, while code,
-inline markup, media and mathematical operators are preserved. Long prose and
-flattened lists use native paragraph/list blocks. Normalization is idempotent.
-
-`clean_coding_instructions.clean_source` preserves the original local-test section,
-including input setup, print calls, expected-output comments and deliberately
-commented-out print tests. Never strip all full-line comments indiscriminately.
-Required grader comments remain intact, and executable AST/token equivalence is
-checked before any file can be published.
-
-The repair script is `scripts/repair_coding_content.py`; its default audit folder
-is ignored `var/coding-content-repair/`, with original sources in ignored
-`var/workspace-instruction-cleanup/`. Plans publish through
-`scripts/clean_coding_instructions.py --root var/coding-content-repair --apply`
-using normal API revision/hash guards. Unpublished drafts and changed executable
-defaults are preserved for review. Graders, grades, submissions and saved student
-workspaces are not modified. Fresh/reset workspaces use repaired defaults;
-existing saved work stays intact.
+Edit exercise instructions and Python files through Config. Preserve useful example calls and expected-output comments. Changes create a new revision; saved student workspaces remain separate. Publish reviewed changes explicitly.

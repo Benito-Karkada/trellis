@@ -3,31 +3,20 @@ import json
 from django.http import JsonResponse,Http404
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
-from .models import Revision,ImportRecord
+from .models import Revision
 from .studio import member,json_body,require_authoring_access
 
 
 def general_hints(revision):
-    hints=list(revision.grading.get('hints',[]))
-    # Existing published imports predate the multi-hint parser fix. Recover the
-    # remaining demand hints from preserved XML without rewriting course content.
-    from defusedxml import ElementTree as ET
-    from defusedxml.common import DefusedXmlException
-    from .importers.edx import _hint_content
-    seen={json.dumps(h,sort_keys=True) for h in hints}
-    for raw in ImportRecord.objects.filter(revision__activity=revision.activity).values_list('raw_xml',flat=True).distinct():
-        if not raw or len(raw)>2_000_000:continue
-        try:root=ET.fromstring(raw)
-        except (ET.ParseError,ValueError,DefusedXmlException):continue
-        for element in root.findall('.//demandhint/hint'):
-            content=_hint_content(element,[]);key=json.dumps(content,sort_keys=True)
-            if content and key not in seen:hints.append(content);seen.add(key)
-    return hints[:50]
+    return list(revision.grading.get('hints', []))[:50]
 
 
 def availability(revision):
-    return {'general':bool(revision.grading.get('hints')) or ImportRecord.objects.filter(revision__activity=revision.activity,raw_xml__contains='<demandhint').exists(),'questions':[qid for qid,rule in revision.grading.get('questions',{}).items()
-        if any(rule.get('choice_feedback',{}).values()) or any(rule.get('choice_feedback_rules',{}).values()) or rule.get('hints')]}
+    return {'general': bool(revision.grading.get('hints')), 'questions': [
+        qid for qid, rule in revision.grading.get('questions', {}).items()
+        if any(rule.get('choice_feedback', {}).values())
+        or any(rule.get('choice_feedback_rules', {}).values()) or rule.get('hints')
+    ]}
 
 
 def solved_questions(revision,progress):

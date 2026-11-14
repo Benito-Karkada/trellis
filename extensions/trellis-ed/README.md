@@ -65,8 +65,7 @@ No Apple signing identity or account is bundled here.
 - Upload success is only reported after a new HTTPS image loads in Ed. If that
   cannot be confirmed, the assistant provides Copy screenshot / Download image.
 - Ed may autosave unposted drafts and upload image attachments when you fill it.
-- New Trellis domains must be added to `src/common.js` and repackaged. The current
-  Azure POC origin and HTTP localhost/127.0.0.1 are supported.
+- New Trellis domains must be added to `src/common.js` and repackaged. HTTP localhost/127.0.0.1 are supported.
 
 ## Tests
 
@@ -81,10 +80,4 @@ separate from preparing these packages.
 
 ## POC verification
 
-The Azure frontend support is deployed as `poc-v47`, including removal of the old
-manual-copy button. Brave was tested with the extension installed: capture,
-preview, Ed title/body insertion, automatic PNG upload, and an explicitly authorized
-sandbox post (thread 8495843). The post has no Trellis link. Sixteen extension tests,
-21 Django Ed integration tests, and the frontend build pass. Safari resources are
-prepared, but this Mac has only Command Line Tools; Apple's converter is unavailable.
-Safari compilation/signing and browser verification remain outstanding.
+The local frontend includes exercise capture support.

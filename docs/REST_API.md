@@ -1,6 +1,6 @@
 # Trellis Staff REST API v1
 
-Base URL: `https://YOUR-TRELLIS-HOST/api/v1/`.
+Base URL: `http://localhost:5173/api/v1/`.
 
 The deployed reference is **Course settings → API access → Open API documentation** (`/api/v1/docs/`). Download the OpenAPI 3.1 contract at `/api/v1/openapi.json`. Both accept an existing staff session or a bearer token for reading documentation; data endpoints require a bearer token.
 
@@ -39,7 +39,7 @@ Content is the same native structured `{ "version": 1, "blocks": [...] }` repres
 
 Assignment updates and part titles, ordering and metadata apply immediately; part content, grading and files are versioned. A newly created assignment defaults to staff visibility; set `visibility: "student"` explicitly when ready. Deleting assignments/parts is a soft delete and preserves historical submissions. Dropping a student sets the course enrollment inactive and preserves accounts, code and grades.
 
-New files require explicit `visibility` (`student`, `staff`, `grader`) and exactly one of `text` or `content_base64`, up to 1 MB. Existing-file PUT may omit visibility to preserve it. Grader/solution paths and known legacy grader filenames cannot be student-visible. Private blob URLs and app secrets are never exposed by file endpoints. Current enrolled students receive newly published public files on next load; edited files are preserved, and untouched files pick up the new baseline. Reset workspace restores the published baseline exactly.
+New files require explicit `visibility` (`student`, `staff`, `grader`) and exactly one of `text` or `content_base64`, up to 1 MB. Existing-file PUT may omit visibility to preserve it. Grader/solution paths and reserved grader filenames cannot be student-visible. Private blob URLs and app secrets are never exposed by file endpoints. Current enrolled students receive newly published public files on next load; edited files are preserved, and untouched files pick up the new baseline. Reset workspace restores the published baseline exactly.
 
 Every write accepts an optional `Idempotency-Key` up to 100 characters. Reusing the same token/key/method/path/body replays its response. A different request with the same key returns 409. Use a fresh key for each distinct edit.
 
@@ -63,12 +63,8 @@ python scripts/api_client.py drop 123
 
 IDs above are examples: look up actual IDs instead of assuming them. Enrollment creation is roster-only; it never returns/changes a password. Use the existing instructor Enrollment login controls when a local login is needed.
 
-## Missing-grader / Ferb migration workflow
 
-`GET /courses/{course_id}/reports/missing-graders/` reports published coding parts missing/invalid native definitions, entrypoint problems, pending coding imports, or grader review requirements. Sandboxes are excluded. `include_ready=true` also lists working graders. Rows include stable part/assignment IDs, a Vocareum part reference when known, reasons, archived grader/staff filenames, and whether a native grader file exists. A working definition in the database counts as a grader even if an old import has no physical `grader/tests.json`; archived Ferb alone never counts.
 
-1. Export this report and match the relevant old archive/part. Use [Ferb source collection](FERB_SOURCES.md) to collect matching sources from existing archives or fresh private ZIP exports.
-2. Read Ferb/test/sample sources as migration material. Do not execute legacy graders on the app server.
 3. Produce a first-party native JSON definition for that exercise. Upload using `PUT /parts/{id}/grader/`; it creates both private `grader/tests.json` and the corresponding `Revision.grading.definition` in one draft.
 4. The entrypoint must already be a student-visible Python file. Optionally set `maximum_points`; use `mark_reviewed: true` only after reviewing the conversion.
 5. Test with `POST /parts/{id}/test-runs/`, passing the latest draft precondition, `operation: "submit"`, and optionally a full public-file snapshot with your sample implementation. Poll `/test-runs/{job_id}/`. Tests use the isolated executor and do not modify a learner's workspace, submission history, or grade.

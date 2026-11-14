@@ -29,7 +29,7 @@ def _validate_rich(nodes):
         if node["type"] == "image":
             if set(node) != {"type","src","alt"} or not all(isinstance(node[k],str) for k in ("src","alt")): raise ValidationError("Invalid image")
         elif node["type"] == "element":
-            from .importers.rich_html import TAGS
+            from .rich_content import TAGS
             if set(node) != {"type","tag","children"} or node["tag"] not in TAGS: raise ValidationError("Invalid content element")
             _validate_rich(node["children"])
         elif node["type"] == "line_break":

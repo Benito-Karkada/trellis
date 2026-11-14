@@ -3,7 +3,7 @@
 Students use the **Trellis · Ask on Ed** browser extension. The manual-copy Ask on Ed
 button has been removed from the course page. Staff still configure the course URL
 under **Course settings → Integrations → Ed Discussion**; clearing it disables capture.
-The configured CS1301 sandbox board is `https://edstem.org/us/courses/100193/discussion`.
+No discussion board is configured in the local demo. An instructor may configure their own board in Course settings if using this optional integration.
 
 See [extension setup and privacy](../extensions/trellis-ed/README.md) for installation,
 Safari packaging, permissions, limits, and development commands.

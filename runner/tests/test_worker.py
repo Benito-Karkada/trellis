@@ -24,7 +24,7 @@ class WorkerTests(unittest.TestCase):
                 "definition": {"version": 1, "cases": [
                     {"id": "answer", "label": "Value", "target": "answer", "expected": 5}]}}
 
-    def test_azure_url_requires_tls_and_explicit_token(self):
+    def test_remote_url_requires_tls_and_explicit_token(self):
         with patch.dict(os.environ, {"RUNNER_API_URL": "https://trellis.example/api/runner/",
                                      "RUNNER_TOKEN": "secret"}, clear=True):
             self.assertEqual(configuration(), ("https://trellis.example/api/runner/", "secret"))
@@ -40,6 +40,10 @@ class WorkerTests(unittest.TestCase):
     def test_run_does_not_grade_or_release_samples(self):
         result = execute_job(self.job("run"), Executor())
         self.assertEqual(result, {"stdout": "hello\n", "execution_status": "ok"})
+
+    def test_local_worker_uses_the_configured_backend_port(self):
+        with patch.dict(os.environ, {"RUNNER_TOKEN": "local-test", "TRELLIS_BACKEND_PORT": "8001"}, clear=True):
+            self.assertEqual(configuration(), ("http://127.0.0.1:8001/api/runner/", "local-test"))
 
     def test_submit_compares_outside_sandbox(self):
         executor = Executor()

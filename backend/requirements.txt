@@ -1,7 +1,7 @@
 Django>=5.2.8,<5.3
 celery>=5.5,<6
 redis>=5,<7
+packaging>=24,<27
 psycopg[binary]>=3.2,<4
-defusedxml==0.7.1
 requests==2.34.2
 PyJWT[crypto]==2.15.0

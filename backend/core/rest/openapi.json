@@ -3020,7 +3020,7 @@
     "/courses/{course_id}/reports/missing-graders/": {
       "get": {
         "summary": "List coding parts missing a valid native grader or requiring review",
-        "description": "Archived Ferb files do not count as a working native grader. Sandboxes are excluded. IDs refer to published parts and their revisions.",
+        "description": "A coding exercise requires a valid native grading definition. Sandboxes are excluded. IDs refer to published parts and their revisions.",
         "operationId": "get_courses_course_id_reports_missing_graders",
         "security": [
           {

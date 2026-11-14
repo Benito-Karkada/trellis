@@ -5,7 +5,7 @@ from pathlib import Path
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
-from .models import Activity,ActivityFile,Revision,ImportRecord,Workspace
+from .models import Activity,ActivityFile,Revision,Workspace
 from .schema import validate_content
 
 
@@ -52,10 +52,6 @@ def combine_group(lesson, group, dataset_name, dataset_bytes, user):
     baseline={}
     for file in revision.files.filter(visibility='student'):
         with file.blob.open('rb') as stream:baseline[file.path]=stream.read().decode()
-    for part in parts:
-        if part.published_revision:
-            for record in ImportRecord.objects.filter(revision=part.published_revision):
-                ImportRecord.objects.create(revision=revision,source_path=record.source_path,raw_xml=record.raw_xml,candidate=record.candidate,warnings=record.warnings,status=record.status,reviewer=record.reviewer)
     # Preserve the latest saved sandbox code; original workspace records remain intact.
     prior=Workspace.objects.filter(revision__activity__in=sources).select_related('revision').order_by('user_id','-updated_at')
     carried=set()

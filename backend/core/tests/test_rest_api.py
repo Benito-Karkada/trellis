@@ -60,7 +60,7 @@ class RestAPITests(TestCase):
   self.assertEqual(self.course.lesson_set.filter(title='New').count(),1)
   self.assertEqual(self.api('post',path,{'title':'Different'},key='create-once').status_code,409)
  def test_grader_report_upload_private_manifest_publish_and_test_queue(self):
-  self.activity.metadata={'kind':'coding','vocareum_part_id':'5591032'};self.activity.save()
+  self.activity.metadata={'kind':'coding','example_id':'addition'};self.activity.save()
   self.revision.grading={'maximum_points':'3','entrypoint':'main.py','review_required':True};self.revision.save()
   report=f'/courses/{self.course.pk}/reports/missing-graders/'
   self.assertEqual(self.api('get',report).json()['count'],1)
@@ -92,7 +92,7 @@ class RestAPITests(TestCase):
   Submission.objects.create(membership=student,revision=self.revision,response={'q':'answer'},received_at=received)
   r=self.api('get',f'/courses/{self.course.pk}/submissions/?enrollment_ids={student.pk}')
   self.assertEqual(r.status_code,200);self.assertIn('submitted_at',r.json()['results'][0])
-  Workspace.objects.create(user=self.student,revision=self.revision,files={'main.py':'student work','private/Ferb.py':'never expose'})
+  Workspace.objects.create(user=self.student,revision=self.revision,files={'main.py':'student work','grader/tests.json':'never expose'})
   r=self.api('get',f'/enrollments/{student.pk}/workspaces/{self.activity.pk}/');self.assertEqual(r.json()['files'],{'main.py':'student work'})
  def test_first_open_and_part_events_are_exact_and_do_not_record_staff_preview(self):
   self.assertFalse(AssignmentVisit.objects.exists())

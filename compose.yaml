@@ -1,3 +1,5 @@
+name: trellis-hackathon
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -20,22 +22,31 @@ services:
       - redis-data:/data
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     command: ["sh", "start-web.sh"]
     env_file: .env
-    ports: ["127.0.0.1:8000:8000"]
+    ports: ["127.0.0.1:${TRELLIS_BACKEND_PORT:-8000}:8000"]
     environment:
       ALLOW_LOCAL_LOGIN: "1"
+      TRELLIS_FRONTEND_PORT: ${TRELLIS_FRONTEND_PORT:-5173}
     volumes:
       - ./backend:/app
-      - ./var:/course-var:ro
       - private-media:/app/private-media
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/', timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_started}
 
   celery:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     command: ["celery", "-A", "config.celery", "worker", "-l", "INFO"]
     env_file: .env
     volumes:
@@ -47,22 +58,12 @@ services:
 
   frontend:
     build: ./frontend
-    ports: ["127.0.0.1:5173:5173"]
+    ports: ["127.0.0.1:${TRELLIS_FRONTEND_PORT:-5173}:5173"]
     volumes:
       - ./frontend:/app
       - frontend-modules:/app/node_modules
-    depends_on: [backend]
-
-  runner-controller:
-    build: ./runner
-    command: ["python", "worker.py"]
-    environment:
-      REDIS_URL: redis://redis:6379/1
-    depends_on: [redis]
-    read_only: true
-    tmpfs: [/tmp]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    depends_on:
+      backend: {condition: service_healthy}
 
 volumes:
   postgres-data:

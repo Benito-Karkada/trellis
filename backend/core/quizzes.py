@@ -41,8 +41,7 @@ def quiz_data(request):
     return JsonResponse({"quizzes": [{"id": q.pk, "title": q.title, "visibility": q.visibility,
         "honorlock_enabled": enabled(q), "honorlock_password_set": bool(access_config(q) and access_config(q).password_hash),
         "exam_mode": bool(q.metadata.get("exam_mode")), "time_limit_minutes": q.metadata.get("time_limit_minutes"),
-        "question_count": q.activity_set.filter(deleted_at=None).count(),
-        "vocareum_assignment_id": q.metadata.get("vocareum_assignment_id")} for q in lessons]})
+        "question_count": q.activity_set.filter(deleted_at=None).count()} for q in lessons]})
 
 
 @require_POST

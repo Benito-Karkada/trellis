@@ -1,7 +1,4 @@
-import ast
-import importlib.util
 import os
-from pathlib import Path
 import unittest
 from grading import Case, Exercise, Observation, RunRequest, grade
 from grading.docker_executor import DockerExecutor
@@ -29,20 +26,6 @@ class TypeDefinitionTests(unittest.TestCase):
         self.assertEqual(load_definition({"version":1,"cases":[{
             "id":"type", "label":"Type", "expected":"int", "action":"variable_type", "target":"x"}]}).cases[0].action,"variable_type")
 
-    def test_importer_reads_type_declarations_without_running_legacy_code(self):
-        root = Path(__file__).resolve().parents[2]
-        path = root / "scripts/prepare_programming_quizzes.py"
-        if not path.exists():
-            self.skipTest("Importer is not deployed to the execution VM")
-        spec = importlib.util.spec_from_file_location("prepare_import", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        tree = ast.parse("raise RuntimeError('never execute')\nexpected_variables=[('x',int),('flag',bool)]\ncorrect_output='types'\nx=type(program.global_variables['x'])\ny=program.output.strip()")
-        result = module.variable_type_definition(tree)
-        self.assertEqual([case["expected"] for case in result["cases"]], ["int","bool","types"])
-        self.assertTrue(result["cases"][-1]["strip_output"])
-        hostile = ast.parse("expected_variables=[('x',__import__('os').system('false'))]\ncorrect_output='types'\nx=type(program.global_variables['x'])")
-        self.assertIsNone(module.variable_type_definition(hostile))
 
 
 @unittest.skipUnless(os.environ.get("RUN_DOCKER_TESTS")=="1", "Opt-in Docker integration")

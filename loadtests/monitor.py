@@ -1,48 +1,21 @@
 #!/usr/bin/env python3
-"""Read-only queue and Azure metrics sampler. Outputs private JSONL for a test run."""
+"""Read-only local queue and Docker metrics sampler. Outputs private JSONL for a test run."""
 import argparse,json,subprocess,sys,tempfile,time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-SUB='75f0c79c-0712-4558-955b-b78bfe006946'
-GROUP='CoC-inst-OMSCS-RG'
-PREFIX=f'/subscriptions/{SUB}/resourceGroups/{GROUP}/providers/'
-RESOURCES={
- 'autograder_vm':(PREFIX+'Microsoft.Compute/virtualMachines/cs1301-poc-grader-vm',['Percentage CPU','CPU Credits Remaining','Available Memory Bytes']),
- 'web':(PREFIX+'Microsoft.App/containerApps/cs1301-poc-web-v2',['UsageNanoCores','WorkingSetBytes','Requests','RestartCount']),
- 'postgres':(PREFIX+'Microsoft.DBforPostgreSQL/flexibleServers/cs1301-poc-db27',['cpu_percent','memory_percent','active_connections']),
-}
-
-def queue(course,azure):
-    source=(ROOT/'loadtests/fixtures.py').read_text()
-    code="import django,json\ndjango.setup()\nexec("+repr(source)+")\nprint('TRELLIS_QUEUE:'+json.dumps(queue_snapshot("+str(course)+")),flush=True)\n"
-    with tempfile.TemporaryDirectory() as temp:
-        file=Path(temp)/'queue.py';file.write_text(code)
-        cmd=[sys.executable,str(ROOT/'scripts/azure-private-exec.py'),'--python-file',str(file)] if azure else [sys.executable,str(file)]
-        r=subprocess.run(cmd,cwd=ROOT,capture_output=True,text=True,timeout=70)
-    if r.returncode or 'TRELLIS_QUEUE:' not in r.stdout:raise RuntimeError('Queue snapshot unavailable')
-    return json.loads(r.stdout.split('TRELLIS_QUEUE:',1)[1].splitlines()[0])
-
-
-def azure_metrics(pair):
-    resource,names=pair
-    start=(datetime.now(timezone.utc)-timedelta(minutes=10)).strftime('%Y-%m-%dT%H:%M:%SZ')
-    r=subprocess.run(['az','monitor','metrics','list','--resource',resource,'--metric',*names,
-        '--start-time',start,'--interval','PT1M','--aggregation','Average','Maximum','--only-show-errors','-o','json'],capture_output=True,text=True,timeout=30)
-    if r.returncode:return {'error':'Azure metrics unavailable (permissions or unsupported metric).'}
-    result={}
-    for metric in json.loads(r.stdout).get('value',[]):
-        series=[]
-        for item in metric.get('timeseries',[]):
-            values=[v for v in item.get('data',[]) if v.get('average') is not None or v.get('maximum') is not None]
-            series.append({'dimensions':item.get('metadatavalues',[]),'points':values})
-        result[metric['name']['value']]={'unit':metric.get('unit'),'series':series}
-    return result
+def docker_metrics():
+    ids = subprocess.check_output(['docker', 'compose', 'ps', '-q'], cwd=ROOT, text=True).split()
+    if not ids:
+        return []
+    result = subprocess.run(['docker', 'stats', '--no-stream', '--format', '{{json .}}', *ids],
+                            capture_output=True, text=True, timeout=20, check=True)
+    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
 
 
 class ApiQueue:
-    """Course-scoped REST sampling; avoids Azure exec's control-plane throttles."""
+    """Course-scoped REST sampling; uses a temporary scoped token."""
     def __init__(self,fixture):
         import requests
         self.fixture=fixture;self.base=fixture['url'];self.session=requests.Session();self.session.trust_env=False
@@ -83,19 +56,18 @@ class ApiQueue:
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--fixture',type=Path,required=True);p.add_argument('--azure',action='store_true')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--fixture',type=Path,required=True)
     p.add_argument('--duration',type=int,default=420);p.add_argument('--interval',type=int,default=30);p.add_argument('--once',action='store_true');a=p.parse_args()
     if a.interval<15 or not 1<=a.duration<=900:raise ValueError('Use interval >=15s and duration 1–900s.')
     fixture=json.loads(a.fixture.read_text());target=a.fixture.parent/'monitor.jsonl'
     deadline=time.monotonic()+a.duration
-    api_queue=ApiQueue(fixture) if a.azure else None
+    api_queue=ApiQueue(fixture)
     try:
         with target.open('a') as output, ThreadPoolExecutor(max_workers=4) as pool:
             target.chmod(0o600)
             while time.monotonic()<deadline:
                 started=time.monotonic();sample={'at':datetime.now(timezone.utc).isoformat()}
-                tasks={'queue':pool.submit(api_queue.read) if api_queue else pool.submit(queue,fixture['course_id'],False)}
-                if a.azure:tasks.update({key:pool.submit(azure_metrics,pair) for key,pair in RESOURCES.items()})
+                tasks={'queue':pool.submit(api_queue.read), 'containers':pool.submit(docker_metrics)}
                 for key,task in tasks.items():
                     try:sample[key]=task.result()
                     except Exception:sample[key]={'error':'Read-only sample unavailable'}

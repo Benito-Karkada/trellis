@@ -144,16 +144,6 @@ class QuizUnlockFailure(models.Model):
         constraints = [models.UniqueConstraint(fields=['membership', 'lesson'], name='unique_quiz_unlock_failure')]
 
 
-class ImportRecord(models.Model):
-    source_path = models.CharField(max_length=500)
-    raw_xml = models.TextField()
-    source_archive = models.FileField(upload_to="migration-sources/", blank=True)
-    archive_sha256 = models.CharField(max_length=64, blank=True)
-    candidate = models.JSONField(default=dict)
-    warnings = models.JSONField(default=list)
-    status = models.CharField(max_length=20, choices=[("needs_review", "Needs review"), ("approved", "Approved"), ("rejected", "Rejected")], default="needs_review")
-    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT)
-    revision = models.ForeignKey(Revision, null=True, blank=True, on_delete=models.PROTECT)
 
 class Submission(models.Model):
     received_at = models.DateTimeField(null=True, blank=True)

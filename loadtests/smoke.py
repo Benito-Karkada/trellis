@@ -27,7 +27,7 @@ try:
   print('Verified:',operation,'correct' if correct else 'incorrect',flush=True)
  f['preflight_jobs']=f.get('preflight_jobs',0)+4
  Path(sys.argv[1]).write_text(json.dumps(f,indent=2));Path(sys.argv[1]).chmod(0o600)
- print('Azure preflight passed: login, full outline, native points, Run, wrong/correct grading, read-only feedback.',flush=True)
+ print('Local preflight passed: login, full outline, native points, Run, wrong/correct grading, read-only feedback.',flush=True)
 finally:
  try:call('POST','/api/auth/logout/',{})
  except Exception:pass

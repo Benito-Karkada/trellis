@@ -1,4 +1,4 @@
-"""Trusted queue worker on a dedicated Docker execution host (local or Azure).
+"""Trusted queue worker on a dedicated Docker execution host for local development.
 
 Only the controller has the runner credential. The DockerExecutor supplies no
 credentials, expected answers, host mounts or networks to student containers.
@@ -24,12 +24,15 @@ stopping = threading.Event()
 
 def configuration():
     token = os.environ.get("RUNNER_TOKEN", "")
-    if not token and not os.environ.get("RUNNER_API_URL"):
+    local_env = {}
+    if not os.environ.get("RUNNER_API_URL"):
         env = Path(__file__).resolve().parent.parent / ".env"
         if env.exists():
-            token = next((line.split("=", 1)[1].strip() for line in env.read_text().splitlines()
-                          if line.startswith("RUNNER_TOKEN=")), "")
-    base = os.environ.get("RUNNER_API_URL", "http://127.0.0.1:8000/api/runner/")
+            local_env = dict(line.strip().split("=", 1) for line in env.read_text().splitlines()
+                             if "=" in line and not line.lstrip().startswith("#"))
+        token = token or local_env.get("RUNNER_TOKEN", "")
+    port = os.environ.get("TRELLIS_BACKEND_PORT", local_env.get("TRELLIS_BACKEND_PORT", "8000"))
+    base = os.environ.get("RUNNER_API_URL", f"http://127.0.0.1:{port}/api/runner/")
     parsed = urlsplit(base)
     if (not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment
             or (parsed.scheme != "https" and not

@@ -1,6 +1,2 @@
-# Local development virtual environment.
-# The backend image uses the same dependency list.
+# Local development and execution worker dependencies.
 -r backend/requirements.txt
-# Optional Azure maintenance scripts; not installed in the app container.
-websocket-client>=1.9,<2
-certifi>=2024.12.14

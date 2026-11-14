@@ -183,7 +183,6 @@ def detail(request, pk):
     if staff:
         data['files'] = list(revision.files.values('id', 'path', 'visibility'))
         data['grading'] = revision.grading
-        data['imports'] = list(revision.importrecord_set.values('source_path','warnings','status','raw_xml'))
     data.update(title=activity.title, number=revision.number, published_revision=activity.published_revision_id,
                 lesson=activity.lesson_id,metadata={**activity.metadata,"placeholder":bool(revision.grading.get("placeholder"))},
                 maximum_points=str(revision.grading.get("maximum_points",1)),

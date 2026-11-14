@@ -17,7 +17,7 @@ class SubmissionHistoryTests(TestCase):
   self.assertEqual([r['id'] for r in rows],['job:'+str(a.pk),'job:'+str(b.pk)])
   self.assertEqual([r['number'] for r in rows],[1,2]);self.assertNotIn('snapshot',str(rows))
  def test_snapshot_uses_historical_revision_and_does_not_change_saved_work(self):
-  j=self.job(snapshot={'main.py':'original','private/Ferb.py':'secret'})
+  j=self.job(snapshot={'main.py':'original','grader/tests.json':'secret'})
   newer=Revision.objects.create(activity=self.activity,number=2,created_by=self.staff,content=self.revision.content)
   self.activity.published_revision=newer;self.activity.save()
   Workspace.objects.create(user=self.student,revision=newer,files={'main.py':'current'})

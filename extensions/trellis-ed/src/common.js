@@ -1,5 +1,4 @@
-export const LIVE_ORIGIN =
-  "https://cs1301-poc-web-v2.agreeablewave-32290e77.southcentralus.azurecontainerapps.io";
+export const LIVE_ORIGIN = "http://localhost:5173";
 export const TTL = 30 * 60 * 1000;
 export const MAX_IMAGE = 3 * 1024 * 1024;
 export function isTrellisUrl(value) {

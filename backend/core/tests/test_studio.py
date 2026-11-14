@@ -27,8 +27,8 @@ class StudioTests(TestCase):
         self.activity.save()
         self.starter = ActivityFile.objects.create(revision=self.revision, path='main.py', visibility='student',
             blob=ContentFile(b'print(1)', name='main.py'))
-        self.private = ActivityFile.objects.create(revision=self.revision, path='private/Ferb.py', visibility='grader',
-            blob=ContentFile(b'secret tests', name='Ferb.py'))
+        self.private = ActivityFile.objects.create(revision=self.revision, path='grader/tests.json', visibility='grader',
+            blob=ContentFile(b'secret tests', name='tests.json'))
         self.client.force_login(self.student)
 
     def test_student_projection_and_private_file_denial(self):

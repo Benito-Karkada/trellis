@@ -1,4 +1,4 @@
-"""HTML into an allowlisted native tree: never execute export markup."""
+"""HTML into an allowlisted native tree: never execute author-supplied markup."""
 from html.parser import HTMLParser
 
 TAGS = {"p","div","span","h1","h2","h3","h4","h5","h6","ul","ol","li","table","thead","tbody","tfoot","tr","td","th","blockquote","pre","code","strong","b","em","i","u","s","sub","sup","br","hr"}

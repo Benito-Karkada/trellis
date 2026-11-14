@@ -18,16 +18,10 @@ class AssessmentTests(SimpleTestCase):
         self.assertEqual(len(result["feedback"]["q"]),2)
         self.assertNotIn("q", assess({"questions":{"q":rule}},{"q":["a"]})["feedback"])
 
-    def test_ungraded_poll_is_parsed_without_executing_script(self):
-        from core.importers.edx import parse_problem_xml
-        raw = '<problem weight="0.0"><script>def rettrue(expect, ans):\n    return True</script><customresponse cfn="rettrue"><textline/></customresponse></problem>'
-        candidate = parse_problem_xml(raw)
-        self.assertEqual(candidate.warnings, [])
-        qid = candidate.content["blocks"][0]["id"]
-        self.assertTrue(assess(candidate.grading, {qid: "To learn Python"})["passed"])
-        self.assertFalse(assess(candidate.grading, {qid: "  "})["passed"])
-        unsafe = parse_problem_xml(raw.replace("return True", "return dangerous()"))
-        self.assertTrue(unsafe.warnings)
+    def test_ungraded_poll_accepts_nonempty_response(self):
+        grading = {"questions": {"reflection": {"accept_nonempty": True}}, "maximum_points": "0"}
+        self.assertTrue(assess(grading, {"reflection": "To learn Python"})["passed"])
+        self.assertFalse(assess(grading, {"reflection": "  "})["passed"])
 
     def test_single_choice_accepts_alternatives_but_not_multiple_selections(self):
         rule = {"selection": "one", "correct_choice_ids": ["a", "b"]}

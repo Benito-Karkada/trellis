@@ -47,22 +47,7 @@ def main():
     samples=[json.loads(line) for line in (folder/'monitor.jsonl').read_text().splitlines()]
     http_rows=[r for r in stats if r['Type'] not in {'','WORKFLOW','CHECK'}]
     def find(name):return next((r for r in stats if r['Name']==name),{})
-    metric_start=datetime.fromisoformat(metadata['started_at']).replace(second=0,microsecond=0) if metadata.get('started_at') else None
-    metric_end=datetime.fromisoformat(metadata['started_at'])+timedelta(minutes=metadata['minutes'],seconds=60) if metadata.get('started_at') else None
-    def inside_window(point):
-        stamp=point.get('timeStamp')
-        return not metric_start or not stamp or metric_start<=datetime.fromisoformat(stamp.replace('Z','+00:00'))<=metric_end
-    peaks={}
-    for resource in ('autograder_vm','web','postgres'):
-        peaks[resource]={}
-        for sample in samples:
-            for name,metric in sample.get(resource,{}).items():
-                if not isinstance(metric,dict):continue
-                values=[v.get('maximum',v.get('average')) for series in metric.get('series',[]) for v in series.get('points',[]) if v.get('maximum',v.get('average')) is not None and inside_window(v)]
-                if values:
-                    previous=peaks[resource].get(name)
-                    peaks[resource][name]={'peak':max(max(values),previous['peak'] if previous else -float('inf')),
-                        'minimum':min(min(values),previous['minimum'] if previous else float('inf')),'unit':metric.get('unit')}
+    container_samples=[{'at':s['at'],'containers':s['containers']} for s in samples if isinstance(s.get('containers'),list)]
     queue_samples=[s['queue'] for s in samples if 'jobs' in s.get('queue',{})]
     students=[];reviews={r['email']:r for r in review['results']}
     tested_lessons={f['lesson_id'],f['native'].get('lesson_id',f['lesson_id']),f['reading'].get('lesson_id',f['lesson_id'])}|{w.get('lesson_id',f['lesson_id']) for w in f.get('workloads',[])}
@@ -90,7 +75,7 @@ def main():
     summary={'run_id':f['run_id'],'created_at':datetime.now(timezone.utc).isoformat(),'users':metadata['users'],'requested_minutes':metadata['minutes'],'preflight_execution_jobs':f.get('preflight_jobs',0),
         'profile':metadata.get('profile','mixed'),'live_course':f.get('live_course',False),'burst_waves':burst_waves,'outline_parts':f['copied_parts'],'http_requests':sum(int(r['Request Count']) for r in http_rows),
         'http_failures':sum(int(r['Failure Count']) for r in http_rows),'workflow_checks':{name:find(name) for name in ('run end-to-end','submit end-to-end')},
-        'course_outline':find('course outline'),'resource_metrics_test_window':peaks,
+        'course_outline':find('course outline'),'container_metrics':container_samples,
         'last_queue_snapshot':queue_samples[-1] if queue_samples else None,
         'monitoring_tokens_revoked':True,'post_run_focus_check':f.get('post_run_focus_check'),'queue_sample_errors':sum('error' in s.get('queue',{}) for s in samples),'students':students}
     path=folder/'summary.json';path.write_text(json.dumps(summary,indent=2));path.chmod(0o600)
@@ -109,8 +94,8 @@ def main():
     {burst_html}
     <h2>Synthetic students</h2><p>Review indices reflect scripted behavior; they are not evidence of AI use. Only selected parts were attempted; totals include all parts of each visited assignment. Full component values and reasons are in submission-review.json. {focus_note}</p><table><tr><th>Test account</th><th>Tested assignment totals</th><th>Runs</th><th>Submits</th><th>Review index</th><th>Focus events</th></tr>{rows}</table>
     <h2>Queue snapshot</h2><p>Includes {f.get("preflight_jobs",0)} preflight execution jobs before the timed Locust run.</p><pre>{esc(json.dumps(summary['last_queue_snapshot'],indent=2))}</pre>
-    <h2>Azure metrics</h2><p>One-minute Azure buckets overlapping the test and cooldown; boundary buckets can include startup/drain and other traffic, so usage is not exclusive per-test attribution. Missing memory points mean the VM is not emitting that metric.</p><pre>{esc(json.dumps(peaks,indent=2))}</pre>
-    <h2>Scope and limits</h2><p>This tests API traffic and these workloads: {esc(workload_note)}. It does not render React/Monaco, stream Kaltura, test every grader, validate exam/proctoring flows, or exercise Canvas. It cannot establish capacity for a full class. Only tagged synthetic accounts generated load. Existing student records and course content are excluded from cleanup. See cleanup.json for cleanup status.</p>
+    <h2>Local container metrics</h2><p>Docker CPU and memory snapshots for this checkout's services. The host execution worker is monitored separately in its terminal.</p><pre>{esc(json.dumps(container_samples,indent=2))}</pre>
+    <h2>Scope and limits</h2><p>This tests API traffic and these workloads: {esc(workload_note)}. It does not render React/Monaco, stream Kaltura, test every grader, validate exam/proctoring flows, or exercise Canvas. It cannot establish capacity for a full class. Only tagged synthetic accounts generated load. Existing student records and course content are excluded from cleanup. Use only disposable local demo data.</p>
     <p>Locust charts: <a href="locust.html">open full report</a>. Raw metrics: monitor.jsonl. Queue sampler gaps: {summary['queue_sample_errors']}.</p></html>'''
     (folder/'report.html').write_text(document)
     print('HTTP requests:',summary['http_requests'],'failures:',summary['http_failures'])

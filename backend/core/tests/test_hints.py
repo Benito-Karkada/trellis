@@ -1,17 +1,7 @@
-from django.test import TestCase,SimpleTestCase
+from django.test import TestCase
 from django.utils import timezone
-from core.models import ImportRecord,ActivityProgress,Submission,QuestionCooldown,QuizAttempt,Membership,Revision
-from core.importers.edx import parse_problem_xml
+from core.models import ActivityProgress,Submission,QuestionCooldown,QuizAttempt,Membership,Revision
 from .test_studio import StudioTests
-
-class HintParserTests(SimpleTestCase):
-    def test_all_general_hints_are_preserved_in_order_including_nested_problems(self):
-        raw='<problem><problem><stringresponse answer="secret"><textline/></stringresponse><demandhint><hint>First hint</hint><hint><code>print(1)</code></hint></demandhint></problem></problem>'
-        candidate=parse_problem_xml(raw)
-        self.assertEqual(len(candidate.grading['hints']),2)
-        self.assertIn('First hint',str(candidate.grading['hints'][0]))
-        self.assertIn('inline_code',str(candidate.grading['hints'][1]))
-        self.assertNotIn('First hint',str(candidate.content))
 
 class HintTests(TestCase):
     def setUp(self):
@@ -31,10 +21,6 @@ class HintTests(TestCase):
             self.assertNotIn(private,text)
         self.assertEqual(self.post({'question_id':'q','kind':'choice','choice_id':'no'}).status_code,403)
         self.assertFalse(ActivityProgress.objects.exists());self.assertFalse(Submission.objects.exists());self.assertFalse(QuestionCooldown.objects.exists())
-    def test_all_imported_general_hints_are_recovered_for_existing_revisions(self):
-        ImportRecord.objects.create(revision=self.revision,source_path='problem.xml',raw_xml='<problem><demandhint><hint>General hint</hint><hint>Second hint</hint></demandhint></problem>')
-        hints=self.post({'question_id':'q'}).json()['hints']
-        self.assertEqual(len(hints),2);self.assertIn('Second hint',str(hints))
     def test_wrong_feedback_survives_cooldown_and_refresh_but_does_not_unlock_other_answers(self):
         response=self.client.post(f'/api/submit-native/{self.revision.pk}/',{'responses':{'q':'no'}},content_type='application/json')
         self.assertIn('Try a different approach',str(response.json()['feedback']))

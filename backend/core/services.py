@@ -24,8 +24,8 @@ def publish(activity, revision, user):
     if revision.activity_id != activity.pk or activity.deleted_at:
         raise ValidationError("Invalid revision or deleted activity")
     validate_content(revision.content)
-    if revision.importrecord_set.exclude(status="approved").exists() or revision.files.filter(visibility="quarantine").exists():
-        raise ValidationError("Resolve migration review and unclassified files first")
+    if revision.files.filter(visibility="quarantine").exists():
+        raise ValidationError("Classify all exercise files before publishing")
     activity.published_revision = revision
     activity.save(update_fields=["published_revision"])
 

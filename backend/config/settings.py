@@ -5,7 +5,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "local-development-only")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 ALLOW_LOCAL_LOGIN = os.environ.get("ALLOW_LOCAL_LOGIN", "0") == "1"
 RUNNER_TOKEN = os.environ.get("RUNNER_TOKEN","")
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"] if DEBUG else []
+FRONTEND_PORT = os.environ.get("TRELLIS_FRONTEND_PORT", "5173")
+CSRF_TRUSTED_ORIGINS = [f"http://localhost:{FRONTEND_PORT}", f"http://127.0.0.1:{FRONTEND_PORT}"] if DEBUG else []
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "backend", "testserver"]
 INSTALLED_APPS = ["django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "core"]
 AUTH_PASSWORD_VALIDATORS = [

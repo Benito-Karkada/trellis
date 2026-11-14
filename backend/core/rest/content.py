@@ -195,7 +195,7 @@ def write_file(revision,path,body,create_only=False):
  if create_only and current:raise APIError(409,'file_exists','This file already exists. Use PUT to replace it.')
  visibility=body.get('visibility',current.visibility if current else None)
  if visibility not in {'student','staff','grader'}:raise APIError(400,'invalid_visibility','Set visibility explicitly to student, staff, or grader for new files.')
- reserved=PurePosixPath(path).name.casefold() in {'ferb.py','phineas.py','phineas_v2.py','utility.py','program.py','autograder.py'}
+ reserved=PurePosixPath(path).name.casefold() in {'autograder.py'}
  if visibility=='student' and (path.startswith(('grader/','solutions/')) or reserved):raise APIError(400,'private_file','Grader and solution files cannot have student visibility.')
  if ('text' in body)==('content_base64' in body):raise APIError(400,'invalid_file','Send exactly one of text or content_base64.')
  if 'text' in body:
@@ -391,7 +391,7 @@ def missing_graders(request,course_id):
   if not any(f.path==entrypoint and f.visibility=='student' for f in files):reason.append('missing_student_entrypoint')
   if not reason and request.GET.get('include_ready')!='true':continue
   rows.append({'part_id':part.pk,'assignment_id':part.lesson_id,'assignment_title':part.lesson.title,'title':part.title,
-    'published_revision_id':r.pk,'vocareum_part_id':part.metadata.get('vocareum_part_id') or r.grading.get('vocareum_part_id'),
+    'published_revision_id':r.pk,
     'needs_attention':bool(reason),'reasons':reason,'has_native_definition':bool(definition and isinstance(definition,dict) and definition.get('cases')),'has_native_grader_file':any(f.path=='grader/tests.json' for f in files),
     'grader_files':[f.path for f in files if f.visibility=='grader'],'staff_files':[f.path for f in files if f.visibility=='staff']})
  return envelope(request,rows)

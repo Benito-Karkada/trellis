@@ -132,7 +132,6 @@ type Detail = {
   grading_enabled: boolean;
   grading?: Record<string, unknown>;
   history: { id: number; number: number; created_at: string }[];
-  imports?: { source_path: string; warnings: unknown[]; raw_xml: string }[];
   locks?: Record<string, string>;
 };
 type Result = {
@@ -1462,15 +1461,6 @@ export default function App() {
                       Version {h.number} ·{" "}
                       {new Date(h.created_at).toLocaleString()}
                     </p>
-                  ))}
-                  {detail.imports?.map((item, i) => (
-                    <details key={i}>
-                      <summary>
-                        Import source · {item.warnings.length} warnings
-                      </summary>
-                      <pre>{JSON.stringify(item.warnings, null, 2)}</pre>
-                      <pre>{item.raw_xml}</pre>
-                    </details>
                   ))}
                 </>
               )}

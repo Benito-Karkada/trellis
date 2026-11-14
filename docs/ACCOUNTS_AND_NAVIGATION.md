@@ -20,7 +20,7 @@ through this roster action.
 
 CSV upload adds people to the roster. Pending accounts can then be activated with
 the **Create login** button on their row. Normal student registration remains
-closed in the Azure POC.
+disabled by default. The local instructor can add demo accounts.
 
 ## Navigation and saved place
 
