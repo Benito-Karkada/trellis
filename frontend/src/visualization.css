@@ -642,3 +642,18 @@
   flex: 1;
   min-width: 200px;
 }
+/* Code examples move into a green side navigation beside the workbench. */
+.viz-main:has(.viz-library) { max-width:1840px; display:grid; grid-template-columns:minmax(230px,290px) minmax(0,1fr); align-items:start; gap:0 28px; }
+.viz-main:has(.viz-library) > .viz-library { grid-column:1; grid-row:1 / span 8; display:flex; flex-direction:column; gap:10px; margin:0; padding:16px; border-radius:16px; background:var(--viz-green); align-self:stretch; }
+.viz-main:has(.viz-library) > .viz-heading,.viz-main:has(.viz-library) > .viz-workbench,.viz-main:has(.viz-library) > .viz-replay,.viz-main:has(.viz-library) > .viz-output,.viz-main:has(.viz-library) > .viz-footnote,.viz-main:has(.viz-library) > .viz-alert { grid-column:2; }
+.viz-library section { padding:10px; border:0; border-radius:12px; background:transparent; }
+.viz-library h2 { color:#fff; }
+.viz-library button { position:relative; display:flex; align-items:center; gap:8px; margin-top:6px; padding:10px 12px; border:1px solid rgba(255,255,255,.92); border-radius:9px 0 0 9px; background:transparent; color:#fff; }
+.viz-library button[aria-pressed="true"] { background:#fff; color:var(--viz-green); border-color:#fff; }
+.viz-library button[aria-pressed="true"]::after { content:""; position:absolute; left:100%; top:50%; transform:translateY(-50%); border-top:20px solid transparent; border-bottom:20px solid transparent; border-left:14px solid #fff; }
+.viz-library button:not([aria-pressed="true"])::after { content:""; position:absolute; right:10px; top:50%; width:0; height:0; transform:translateY(-50%); border-top:6px solid transparent; border-bottom:6px solid transparent; border-left:7px solid #fff; }
+.viz-library button > svg { display:none; }
+.viz-panel-heading .viz-reset { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; padding:6px 10px; border:1px solid #bfc9c2; border-radius:8px; background:#fffefa; color:#17352c; font-size:12px; }
+.viz-panel-heading .viz-reset:disabled { opacity:.5; cursor:not-allowed; }
+@media (max-width:1000px) { .viz-main:has(.viz-library) { grid-template-columns:220px minmax(0,1fr); gap:0 18px; } }
+@media (max-width:700px) { .viz-main:has(.viz-library) { display:block; } .viz-main:has(.viz-library) > .viz-library { display:grid; grid-template-columns:1fr; max-height:42vh; overflow-y:auto; margin-bottom:22px; } .viz-library button[aria-pressed="true"]::after { display:none; } }
