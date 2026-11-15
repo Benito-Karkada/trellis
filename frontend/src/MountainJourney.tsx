@@ -54,7 +54,6 @@ export default function MountainJourney({ lessons, mountain }: {
     <footer className="ch-journey-caption" aria-live="polite">
       <strong>{position.finished ? "Summit reached!" : `Working toward Unit ${current.number}`}</strong>
       <span>{position.finished ? "All five units complete" : `${current.completed} / ${current.total} parts complete`}</span>
-      <small>Based on completed coursework, not due dates.</small>
     </footer>
   </section>;
 }
