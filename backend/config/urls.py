@@ -86,6 +86,10 @@ urlpatterns += [path("api/visualizations/", visualization.start),
     path("api/visualizations/<uuid:pk>/", visualization.status),
     path("api/visualizations/samples/<int:pk>/", visualization.sample_data)]
 
+from core import upcoming
+urlpatterns += [path('api/upcoming/', upcoming.assignments),
+    path('api/upcoming/<int:pk>/check/', upcoming.check)]
+
 from core import courses, canvas_assignments
 urlpatterns += [path('api/courses/', courses.collection),
     path('api/settings/course/', courses.settings_data),

@@ -3,7 +3,7 @@ import BrandLogo from "./BrandLogo";
 import LogoutButton from "./LogoutButton";
 import UnitOverview from "./UnitOverview";
 import HomeNotebook from "./HomeNotebook";
-import type { UpcomingItem } from "./UpcomingPanel";
+import type { useUpcoming } from "./useUpcoming";
 import { routeHref } from "./navigation";
 import "./homeRedesign.css";
 import "./visualization.css";
@@ -15,7 +15,7 @@ type Resume = { lesson_id: number; activity_id: number; lesson_title: string; ac
 /** The student view of the course home page (everything except the structure editor). */
 export default function CourseHomeView({
   title, code, term, example, onCourses, lessons, quizzes, canManage, resume, busy, error, notice,
-  upcoming, onToggleUpcoming,
+  upcoming,
   onVisualize, onOpen, onGradebook, onSettings, onDiscussions, onEditStructure, onSignOut,
 }: {
   title: string;
@@ -30,8 +30,7 @@ export default function CourseHomeView({
   busy: boolean;
   error: string;
   notice: string;
-  upcoming?: UpcomingItem[];
-  onToggleUpcoming?: (id: UpcomingItem["id"], done: boolean) => void;
+  upcoming: ReturnType<typeof useUpcoming>;
   onVisualize: () => void;
   onOpen: (lesson: number, activity: number | null) => void;
   onGradebook: () => void;
@@ -82,7 +81,7 @@ export default function CourseHomeView({
               <span className="ch-resume-continue">Continue <ArrowRight size={18} /></span>
             </a>
           )}
-          <HomeNotebook upcoming={upcoming} onToggleUpcoming={onToggleUpcoming} />
+          <HomeNotebook upcoming={upcoming} onOpen={onOpen} onManageDeadlines={canManage ? onSettings : undefined} />
         </aside>
         <main className="ch-pages">
           {!lessons.length&&!quizzes.length&&<section className="library-empty"><BookOpen size={34}/><h2>Your course starts here</h2><p>{canManage?"Add your first section, then build lessons, videos, questions, and coding exercises.":"Your instructor is preparing this course. Check back for new content."}</p>{canManage&&<button className="primary" onClick={onEditStructure}>Add course content</button>}</section>}

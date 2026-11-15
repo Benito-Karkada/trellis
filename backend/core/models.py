@@ -505,3 +505,16 @@ class VisualizationJob(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     claimed_at = models.DateTimeField(null=True)
     completed_at = models.DateTimeField(null=True)
+
+
+class AssignmentChecklist(models.Model):
+    """Personal reminders, independent of grades and isolated from staff preview."""
+    membership = models.ForeignKey(Membership, on_delete=models.CASCADE)
+    assignment = models.ForeignKey(Lesson, on_delete=models.CASCADE)
+    student_view = models.BooleanField(default=False)
+    checked = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['membership', 'assignment', 'student_view'],
+            name='unique_assignment_checklist')]

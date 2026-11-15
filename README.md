@@ -33,6 +33,8 @@ The **Courses** library lists each account's enrolled courses. Instructors can c
 
 Use **Course settings → Publish to Canvas** to preview and create/update Canvas assignments with titles, published point totals, due dates, and direct Trellis links. Drafts are the default. Live publishing requires server-side Canvas credentials and the target course ID; no Canvas account is needed for local authoring or previews. See [courses and Canvas setup](docs/COURSES_AND_CANVAS.md).
 
+The home notebook's **Upcoming** list shows dated assignments in deadline order, with current earned/total points, clickable assignment names, and urgency colors. Set dates under **Course settings → Assignments & grading**. Personal checklist boxes persist across reloads and never submit work or change grades. Individual deadline accommodations are respected. Completed past assignments leave the list; undated assignments stay in the course outline. After pulling a schema change, run `docker compose exec -T backend python manage.py migrate` (or restart the backend, which migrates on startup).
+
 ## Enable Python Run / Submit
 
 The web app queues execution requests. A separate worker on your computer runs each program in a disposable Docker sandbox. Keep Docker Desktop running and start this worker in a **second terminal**, from the repository root:

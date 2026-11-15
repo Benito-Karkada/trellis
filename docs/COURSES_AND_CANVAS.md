@@ -122,3 +122,25 @@ course IDs are rejected, never silently replaced by another course.
 
 Existing `/api/v1/` bearer tokens remain restricted to the course in which they
 were issued. A browser course selector or header cannot expand their scope.
+
+## Upcoming assignments
+
+The home notebook loads `/api/upcoming/` in the selected course. Rows contain
+the assignment ID/title, effective deadline, current published earned/maximum
+points, assignment link, and the current account's checklist state. Nearest
+deadlines appear first, including unfinished overdue assignments. Undated and
+ungraded sections are omitted, as are completed past assignments and closed
+past quizzes. Student visibility and individual deadline accommodations apply.
+If parts have different deadlines, the row shows the next outstanding one.
+
+Red means overdue or due within 24 hours; amber means within three days; green
+means later. Text labels accompany the colors. Dates display in the browser's
+local time zone. The list refreshes on returning home, on window focus, and
+once per minute while visible.
+
+`POST /api/upcoming/<id>/check/` with `{ "checked": true }` saves a personal
+reminder, not a submission or grade. Full credit checks future assignments by
+default; a manual uncheck is preserved. Staff student-view reminders are kept
+separate from their regular checklist. Other users' reminders are never exposed.
+Writes require the authenticated session, CSRF token, and matching course
+membership. The checklist table is introduced by migration 0025.

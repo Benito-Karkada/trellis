@@ -25,7 +25,8 @@ import { api } from "./api";
 import LogoutButton from "./LogoutButton";
 import UnitOverview from "./UnitOverview";
 import DiscussionSelect from "./DiscussionSelect";
-import { routeHref } from "./navigation";
+import { readRoute, routeHref } from "./navigation";
+import { useUpcoming } from "./useUpcoming";
 
 type Activity = {
   id: number;
@@ -84,6 +85,7 @@ export default function CourseHome({
   onVisualize: () => void;
   resume?: {lesson_id:number;activity_id:number;lesson_title:string;activity_title:string;category:string} | null;
 }) {
+  const upcoming = useUpcoming(readRoute().courseId, lessons);
   const [editing, setEditing] = useState(false),
     [sectionTitle, setSectionTitle] = useState(""),
     [partTitles, setPartTitles] = useState<Record<number, string>>({}),
@@ -187,7 +189,7 @@ export default function CourseHome({
   const open = (lesson:number, activity:number|null) => leave(() => onOpen(lesson,activity));
   if (!editing) {
   return <CourseHomeView title={title} example={example} code={code} term={term} onCourses={onCourses} lessons={courseLessons} quizzes={quizzes}
-    canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
+    upcoming={upcoming} canManage={canManage} resume={resume} busy={busy} error={error} notice={notice}
     onOpen={open} onGradebook={() => leave(onGradebook)} onSettings={() => leave(onSettings)}
     onVisualize={onVisualize} onDiscussions={() => leave(onDiscussions)} onEditStructure={beginEditing} onSignOut={onSignOut} />;
 }
