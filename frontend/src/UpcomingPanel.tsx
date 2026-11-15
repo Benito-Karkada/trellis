@@ -57,7 +57,6 @@ export default function UpcomingPanel({
           <h3 className="ch-upcoming-title" id="upcoming-title">
             Upcoming
           </h3>
-          <p>Nearest deadlines first</p>
         </div>
         <span className="ch-upcoming-count">
           {items.filter((item) => !item.done).length} to do

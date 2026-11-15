@@ -144,3 +144,20 @@ html[data-theme] .discussion-shell .db-search-field > input[type="search"]:focus
 @media(max-width:760px){.db-issues { padding:28px 16px 60px; }.db-issues-head { grid-template-columns:1fr; gap:20px; }.db-issues-head aside { max-width:none; }.db-issue-posts > button { grid-template-columns:1fr; gap:5px; }.db-issue-posts em { margin-left:0; }}
 @media(max-width:760px){.db-composer-row { grid-template-columns:1fr; gap:4px; }.db-composer-label { text-align:left; }.db-composer-actions { margin-left:0; }}
 @media(max-width:520px){.discussion-topbar .brand-wordmark,.db-course-name { display:none; }.db-topnav { justify-content:flex-start; overflow:auto; }.db-topnav button { padding:0 8px; font-size:12px; }.discussion-topbar-actions { margin-left:auto; }.discussion-topbar-actions .discussion-home-link { font-size:0; }.discussion-topbar-actions .discussion-home-link svg { width:20px; }.db-detail { padding:20px 16px 60px; }.db-feed-actions { flex-wrap:wrap; }.db-search-field { min-height:38px; }.db-manage,.db-stats { padding:24px 15px; }}
+
+.db-related { margin:18px 0 22px 160px; padding:18px; border:1px solid #b9cdc1; border-radius:12px; background:#f3f8f3; }
+.db-related header { display:flex; align-items:center; gap:8px; color:#285840; }
+.db-related > p { margin:6px 0 14px; font-size:13px; color:#51665b; }
+.db-related ul { list-style:none; margin:0; padding:0; }
+.db-related li + li { border-top:1px solid #d9e5dc; }
+.db-related a { display:flex; align-items:flex-start; gap:10px; padding:12px 2px; color:#244936; text-decoration:none; }
+.db-related a > svg { flex-shrink:0; margin-top:3px; }
+.db-related a > span { flex:1; min-width:0; }
+.db-related a strong { display:block; font-size:14px; overflow-wrap:anywhere; }
+.db-related a small { display:block; margin:5px 0 8px; color:#52665b; line-height:1.5; overflow-wrap:anywhere; }
+.db-related a em { display:inline-block; font-size:11px; font-style:normal; font-weight:700; padding:3px 7px; border-radius:5px; background:#deeee2; }
+.db-related a:hover strong { text-decoration:underline; }
+.db-related a:focus-visible { outline:2px solid #376d50; outline-offset:3px; border-radius:4px; }
+.db-related small, .db-related-retry { font-size:13px; line-height:1.5; }
+.db-related-retry button { text-decoration:underline; font-weight:700; }
+@media (max-width:900px) { .db-related { margin-left:0; } }

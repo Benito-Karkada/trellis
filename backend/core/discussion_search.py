@@ -2,8 +2,8 @@
 
 The default encoder is intentionally local and deterministic: it maps common
 course vocabulary into semantic concepts, hashes token and character features,
-and returns a normalized dense vector.  The provider boundary lets Azure
-OpenAI replace it later without changing indexing or ranking.
+and returns a normalized dense vector.  The provider boundary allows a learned embedding model later without changing
+indexing or ranking.
 """
 from __future__ import annotations
 
@@ -222,10 +222,10 @@ def _postgres_cosine(documents: list[DiscussionSearchDocument], query_vector: li
     ids = [document.pk for document in documents]
     literal = vector_literal(query_vector)
     try:
-        with connection.cursor() as cursor:
+        with transaction.atomic(), connection.cursor() as cursor:
             cursor.execute(f"SELECT id, embedding::vector({EMBEDDING_DIMENSIONS}) <=> %s::vector({EMBEDDING_DIMENSIONS}) AS distance "
-                f"FROM {table} WHERE id = ANY(%s) ORDER BY distance LIMIT %s",
-                [literal, ids, min(500, len(ids))])
+                f"FROM {table} WHERE id = ANY(%s)",
+                [literal, ids])
             return {row[0]: 1.0 - float(row[1]) for row in cursor.fetchall()}
     except DatabaseError:
         # A fresh developer database may be between image and migration updates.
@@ -256,7 +256,14 @@ class SearchMatch:
 def search_discussions(query: str, course_id: int, thread_ids: list[int]) -> list[SearchMatch]:
     """Return best content match per already-authorized thread."""
     if not query.strip() or not thread_ids: return []
-    sync_course_index(course_id)
+    # Mutations refresh their own index. Only backfill legacy/imported posts here;
+    # typing a draft must not re-encode every post and answer in the course.
+    indexed = DiscussionSearchDocument.objects.filter(course_id=course_id,
+        content_type="post").values("thread_id")
+    missing = DiscussionThread.objects.filter(course_id=course_id, pk__in=thread_ids,
+        deleted_at=None).exclude(pk__in=indexed).values_list("pk", flat=True)
+    for thread_id in missing:
+        refresh_thread_index(thread_id)
     documents = list(DiscussionSearchDocument.objects.filter(course_id=course_id,
         thread_id__in=thread_ids).order_by("pk"))
     query_vector = embedding_provider().embed(query)

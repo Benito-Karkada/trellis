@@ -258,6 +258,43 @@ def list_threads(request):
     return JsonResponse({"threads": [thread_data(row, member, staff, states.get(row.pk), match_map.get(row.pk)) for row in rows[:30]], "has_more": len(rows) > 30})
 
 
+@require_POST
+@json_body
+def suggestions(request):
+    """Search answered threads without saving the draft or recording a view."""
+    member = current_member(request)
+    payload = request.payload
+    text = payload.get("text")
+    exclude = payload.get("exclude_id")
+    if (set(payload) - {"text", "exclude_id"} or not isinstance(text, str)
+            or len(text) > 1500 or exclude is not None and (type(exclude) is not int or exclude <= 0)):
+        return JsonResponse({"error": "Supply up to 1,500 characters of draft text."}, status=400)
+    if len(text.strip()) < 12:
+        return JsonResponse({"suggestions": []})
+    answered = DiscussionAnswer.objects.filter(thread_id=OuterRef("pk")).exclude(body="")
+    query = visible_threads(member, is_staff(request, member)).filter(kind="question").annotate(
+        answered=Exists(answered)).filter(answered=True)
+    if exclude is not None:
+        query = query.exclude(pk=exclude)
+    ids = list(query.values_list("pk", flat=True))
+    matches = search_discussions(text, member.course_id, ids)
+    # Require a meaningful hybrid match, rather than filling the list with noise.
+    matches = [match for match in matches if match.score >= .18][:5]
+    threads = {thread.pk: thread for thread in query.filter(pk__in=[m.thread_id for m in matches])
+        .prefetch_related("answers")}
+    rows = []
+    for match in matches:
+        thread = threads.get(match.thread_id)
+        if thread is None:
+            continue
+        answers = list(thread.answers.all())
+        label = ("Instructor answer" if any(a.kind == "instructor" for a in answers)
+            else "Endorsed answer" if any(a.endorsed for a in answers) else "Student answer")
+        rows.append({"id": thread.pk, "title": thread.title, "answer_label": label,
+            "excerpt": match.excerpt, "score": round(match.score, 4)})
+    return JsonResponse({"suggestions": rows})
+
+
 def selected_folders(payload, member, required):
     ids = payload.get("folder_ids", [])
     if not isinstance(ids, list) or any(type(pk) is not int for pk in ids) or len(ids) != len(set(ids)) or len(ids) > 5: return None

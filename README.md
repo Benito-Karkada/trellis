@@ -6,7 +6,7 @@
 
 A local course-building and learning platform. Instructors create lessons and exercises; students read, practice, write Python, and receive feedback in one workspace. The included CS 1301 course has 26 sections and 1,064 parts, including readings, videos, native questions, coding exercises, sandboxes, and all six programming quizzes.
 
-Course members can open discussions from the icon beside Course units on the course home. Discussion search combines exact text matching with local semantic embeddings, covers posts, shared answers, and followups, and stores vectors in PostgreSQL with pgvector. The local encoder does not require a cloud account.
+Course members can open discussions from the icon beside Course units on the course home. Discussion search combines exact text matching with local semantic embeddings, covers posts, shared answers, and followups, and stores vectors in PostgreSQL with pgvector. The local encoder does not require a cloud account. When drafting a question, related answered threads appear after a short typing pause, with instructor/endorsed/student answer badges. Links open in another tab to preserve the draft. Suggestions respect course membership and private-post visibility and do not save draft text or record post views. This is a lightweight vocabulary/feature-based encoder for the local prototype, not a general-purpose language model.
 
 ## Start locally
 
@@ -76,6 +76,8 @@ docker compose down
 ```
 
 The home page, chapter content, problem sets, editor, quizzes, and staff screens share the sage/paper/navy design tokens in `frontend/src/designTokens.css`. Course and staff styling lives in `frontend/src/courseDesign.css`; the home notebook keeps its own layout.
+
+After `git pull`, run `sh scripts/update-local.sh` to rebuild changed dependencies, start PostgreSQL with pgvector, and apply migrations before reopening the app. This preserves the database and course content. Pulling source alone does not apply new database tables: that causes HTTP 500 errors; requests during a backend restart can cause HTTP 502/proxy errors. If the update fails, inspect its migration output before restarting services.
 
 Frontend and backend source are mounted into their development containers. Changes reload automatically. Rebuild after changing dependencies, Dockerfiles, or the shared grading package with `docker compose up -d --build`. Restart the host worker after changing runner code.
 

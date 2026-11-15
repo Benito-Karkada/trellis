@@ -22,8 +22,7 @@ def main():
         print("Created private local configuration.", flush=True)
     else:
         print("Keeping existing local configuration.", flush=True)
-    subprocess.run(["docker", "compose", "up", "-d", "--build", "--wait",
-                    "postgres", "redis", "backend", "celery", "frontend"], check=True, cwd=ROOT)
+    subprocess.run(["sh", "scripts/update-local.sh"], check=True, cwd=ROOT)
     subprocess.run(["docker", "compose", "exec", "-T", "backend", "python", "manage.py",
                     "load_local_course", "/course-data/cs1301.tar.gz"],
                    check=True, cwd=ROOT)

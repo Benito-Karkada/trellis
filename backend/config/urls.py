@@ -100,6 +100,7 @@ urlpatterns += [path('api/courses/', courses.collection),
 from core import discussions
 urlpatterns += [path("api/discussions/", discussions.list_threads),
     path("api/discussions/meta/", discussions.meta),
+    path("api/discussions/suggestions/", discussions.suggestions),
     path("api/discussions/draft/", discussions.get_draft),
     path("api/discussions/draft/save/", discussions.save_draft),
     path("api/discussions/draft/discard/", discussions.discard_draft),
