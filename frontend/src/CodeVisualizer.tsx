@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
   BookOpen,
   Braces,
   ChevronLeft,
@@ -302,9 +301,8 @@ export default function CodeVisualizer({
     step.frames.length === 1 &&
     trace?.status === "ok" &&
     !trace.truncated;
-  const topics = [...new Set(allExamples.map((row) => row.topic))];
   return (
-    <div className="viz-shell">
+    <div className={activity ? "viz-shell" : "viz-shell viz-sandbox"}>
       <header className="viz-nav">
         <button className="brand" onClick={onBack}>
           <BrandLogo />
@@ -320,36 +318,89 @@ export default function CodeVisualizer({
           </span>
         </div>
       </header>
+      {!activity && (
+        <aside className="viz-side">
+          <span className="viz-eyebrow">Python lab</span>
+          <h1>Code Sandbox</h1>
+          <p>
+            Choose an example or edit the code, then step through its
+            execution.
+          </p>
+          <nav className="viz-library" aria-label="Python examples">
+            {allExamples.map((row) => (
+              <button
+                key={row.id}
+                aria-pressed={row.id === exampleId}
+                disabled={busy || !!authoring}
+                onClick={() => {
+                  clearTrace();
+                  setSavedNotice("");
+                  setExampleId(row.id);
+                  setSource(row.source);
+                }}
+              >
+                <span>
+                  <strong>{row.topic}</strong>
+                  <small>{row.title}</small>
+                  {row.id.startsWith("course-") && (
+                    <small className="viz-library-name">
+                      {
+                        sandboxes.find(
+                          (item) => `course-${item.id}` === row.id,
+                        )?.sandbox_name
+                      }
+                    </small>
+                  )}
+                </span>
+                <Play size={22} fill="currentColor" aria-hidden="true" />
+              </button>
+            ))}
+          </nav>
+        </aside>
+      )}
       <main className="viz-main">
-        <div className="viz-heading">
-          <div>
-            <span className="viz-eyebrow">
-              {activity ? "Unlocked walkthrough" : "Python lab"}
-            </span>
-            <h1>
-              {activity
-                ? samples?.title || "Sample answer walkthrough"
-                : "Code visualizer"}
-            </h1>
-            <p>
-              {activity
-                ? "Step through a sample answer. Your workspace and score stay as they are."
-                : "Choose an example or edit the code, then step through its execution."}
-            </p>
+        {activity ? (
+          <div className="viz-heading">
+            <div>
+              <span className="viz-eyebrow">Unlocked walkthrough</span>
+              <h1>{samples?.title || "Sample answer walkthrough"}</h1>
+              <p>
+                Step through a sample answer. Your workspace and score stay as
+                they are.
+              </p>
+            </div>
           </div>
-          {!activity && canEditLibrary && (
+        ) : (
+          <div className="viz-toolbar">
+            {canEditLibrary && (
+              <button
+                className="viz-add-sandbox"
+                disabled={busy || !!authoring}
+                onClick={() => {
+                  setSavedNotice("");
+                  setAuthoring("new");
+                }}
+              >
+                <Plus size={17} /> Add sandbox
+              </button>
+            )}
             <button
-              className="viz-add-sandbox"
-              disabled={busy || !!authoring}
+              className="viz-reset-sandbox"
+              type="button"
+              title="Restore the selected example code and clear the trace"
+              disabled={
+                busy || !!authoring || (source === example.source && !trace)
+              }
               onClick={() => {
-                setSavedNotice("");
-                setAuthoring("new");
+                setSource(example.source);
+                clearTrace();
               }}
             >
-              <Plus size={17} /> Add sandbox
+              <RotateCcw size={16} />
+              Reset sandbox
             </button>
-          )}
-        </div>
+          </div>
+        )}
         {!activity && libraryError && (
           <div className="viz-alert error" role="alert">
             Course sandboxes couldn’t load: {libraryError}{" "}
@@ -385,44 +436,6 @@ export default function CodeVisualizer({
               setSavedNotice("Sandbox saved to the course library.");
             }}
           />
-        )}
-        {!activity && (
-          <div className="viz-library" aria-label="Python examples">
-            {topics.map((topic) => (
-              <section key={topic}>
-                <h2>{topic}</h2>
-                {allExamples
-                  .filter((row) => row.topic === topic)
-                  .map((row) => (
-                    <button
-                      key={row.id}
-                      aria-pressed={row.id === exampleId}
-                      disabled={busy || !!authoring}
-                      onClick={() => {
-                        clearTrace();
-                        setSavedNotice("");
-                        setExampleId(row.id);
-                        setSource(row.source);
-                      }}
-                    >
-                      <span>
-                        {row.title}
-                        {row.id.startsWith("course-") && (
-                          <small className="viz-library-name">
-                            {
-                              sandboxes.find(
-                                (item) => `course-${item.id}` === row.id,
-                              )?.sandbox_name
-                            }
-                          </small>
-                        )}
-                      </span>
-                      <ArrowRight size={15} />
-                    </button>
-                  ))}
-              </section>
-            ))}
-          </div>
         )}
         {activity && samples && !!samples.cases.length && (
           <div className="viz-test-input">
@@ -507,25 +520,8 @@ export default function CodeVisualizer({
                       <SquarePen size={15} /> Edit sandbox
                     </button>
                   )}
-                  {!activity && (
-                    <button
-                      className="viz-reset"
-                      type="button"
-                      title="Restore the selected example code"
-                      aria-label="Reset code to the selected example"
-                      disabled={
-                        busy || !!authoring || source === example.source
-                      }
-                      onClick={() => {
-                        setSource(example.source);
-                        clearTrace();
-                      }}
-                    >
-                      <RotateCcw size={15} />
-                      Reset
-                    </button>
-                  )}
                 </div>
+                <div className="viz-editor">
                 <Suspense
                   fallback={<div className="viz-loading">Opening editor…</div>}
                 >
@@ -538,7 +534,7 @@ export default function CodeVisualizer({
                     }}
                     disabled={busy || !!trace || !!activity || !!authoring}
                     theme="light"
-                    height="440px"
+                    height="100%"
                     activeLine={step && !done ? step.line : undefined}
                     ariaLabel={
                       activity
@@ -547,6 +543,7 @@ export default function CodeVisualizer({
                     }
                   />
                 </Suspense>
+                </div>
                 <div className="viz-build">
                   <button
                     className="primary"
@@ -558,7 +555,7 @@ export default function CodeVisualizer({
                       ? "Building trace…"
                       : trace
                         ? "Rebuild trace"
-                        : "Visualize code"}
+                        : "Run code"}
                   </button>
                   {trace && !activity && (
                     <button onClick={clearTrace}>
