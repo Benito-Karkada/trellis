@@ -37,6 +37,7 @@ export default function HomeNotebook({
               role="group"
               aria-roledescription="slide"
               aria-label="1 of 2: Upcoming"
+              tabIndex={slide === 0 ? 0 : -1}
               aria-hidden={slide !== 0}
               inert={slide !== 0}
             >

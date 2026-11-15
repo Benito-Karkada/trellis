@@ -5,11 +5,28 @@ import math
 import re
 from dataclasses import dataclass, field
 
-from .discussion_search import cosine, embedding_provider
+from .discussion_search import TOKEN_RE, cosine, embedding_provider, normalize_text
 from .models import DiscussionThread
 
 
-SIMILARITY_THRESHOLD = .34
+SIMILARITY_THRESHOLD = .40
+# Generic question wording and acknowledgements should not join unrelated topics.
+CLUSTER_STOPWORDS = frozenset("""
+    a an the i me my we our you your he she they their it its this that these those
+    am is are was were be been being do does did have has had can cannot could
+    should would will may might to of in on at for from with as by and or but
+    how why what which where when there here than then so any some also still
+    always each just more only after before about get gets getting use using used
+    need help think try tried trying example examples small new another one two
+    question questions problem problems course site page please thanks thank explanation wondering know want seems
+""".split())
+
+
+def cluster_vector(title: str, body: str) -> list[float]:
+    text = normalize_text(f"{title} {title} {body}")
+    text = re.sub(r"\baccount access\b", "login", text)
+    words = TOKEN_RE.findall(text)
+    return embedding_provider().embed(" ".join(word for word in words if word not in CLUSTER_STOPWORDS))
 IMPACT_WORDS = re.compile(
     r"\b(blocked|blocking|cannot|can't|crash|deadline|due|error|fail|failed|grade|"
     r"login|missing|not working|submit|submission|unable|urgent)\b", re.I)
@@ -56,7 +73,10 @@ def _candidate(thread: DiscussionThread) -> Candidate | None:
         return None
     content = "\n".join(text)
     answered = any(answer.kind == "instructor" for answer in thread.answers.all())
-    return Candidate(thread, content, embedding_provider().embed(content), student_ids,
+    # Followups contribute student counts and urgency, but an acknowledgement
+    # such as "same question here" is not evidence that two topics are related.
+    question_body = thread.body if thread.author and thread.author.role == "student" else content
+    return Candidate(thread, content, cluster_vector(thread.title, question_body), student_ids,
         open=not answered or roots_open)
 
 

@@ -61,6 +61,16 @@ After a correct submission to a regular coding exercise, **Visualize sample** op
 
 The visualizer uses the same local worker as Run/Submit. If you pulled this feature into an existing setup, apply `docker compose exec -T backend python manage.py migrate` and restart `sh scripts/start-worker.sh` to rebuild the sandbox and load the new worker code. It does not change scores, submissions, or saved work. See [visualizer behavior and limits](docs/CODE_VISUALIZER.md).
 
+## Fictional discussion demo
+
+To populate a local course with 44 original sample posts, staff/student answers, endorsements, followups, polls, and activity statistics:
+
+```sh
+docker compose exec -T backend python manage.py seed_discussion_demo --course-id 2
+```
+
+Use the course ID from its URL. This requires `DEBUG=1` and adds numbered demo participants with no email, GTID, Canvas identity, or usable password. A pinned post identifies the activity as fictional. Rerunning preserves existing posts and edits without creating duplicates. The data is stored locally; the command and fictional content are included in Git for teammates to use.
+
 ## Everyday development
 
 ```sh
