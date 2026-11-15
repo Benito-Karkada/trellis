@@ -518,3 +518,16 @@ class AssignmentChecklist(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['membership', 'assignment', 'student_view'],
             name='unique_assignment_checklist')]
+
+
+class VisualizationSandbox(models.Model):
+    """An instructor-authored public learning example; never a grader file."""
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="visualization_sandboxes")
+    title = models.CharField(max_length=160)
+    sandbox_name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, max_length=1000)
+    source = models.TextField(max_length=12000)
+    version = models.PositiveIntegerField(default=1)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

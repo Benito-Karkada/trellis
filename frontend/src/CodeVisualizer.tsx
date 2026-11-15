@@ -8,12 +8,16 @@ import {
   Code2,
   Layers,
   Pause,
+  Plus,
   Play,
   RotateCcw,
   SquarePen,
 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import { api } from "./api";
+import VisualizationSandboxEditor from "./VisualizationSandboxEditor";
+import type { CourseSandbox } from "./VisualizationSandboxEditor";
+import { readRoute } from "./navigation";
 import { visualizationExamples } from "./visualizationExamples";
 import "./visualization.css";
 const EditorPane = lazy(() => import("./EditorPane"));
@@ -58,8 +62,31 @@ export default function CodeVisualizer({
   activity?: number | null;
   onBack: () => void;
 }) {
+  const courseId = readRoute().courseId;
+  const [sandboxes, setSandboxes] = useState<CourseSandbox[]>([]);
+  const [canEditLibrary, setCanEditLibrary] = useState(false);
+  const [libraryError, setLibraryError] = useState("");
+  const [libraryRetry, setLibraryRetry] = useState(0);
+  const [authoring, setAuthoring] = useState<"new" | "edit" | null>(null);
+  const [savedNotice, setSavedNotice] = useState("");
   const [exampleId, setExampleId] = useState("for");
-  const example = visualizationExamples.find((row) => row.id === exampleId)!;
+  const customSandbox = sandboxes.find(
+    (row) => `course-${row.id}` === exampleId,
+  );
+  const allExamples = [
+    ...visualizationExamples,
+    ...sandboxes.map((row) => ({
+      id: `course-${row.id}`,
+      title: row.title,
+      topic: "Course sandboxes",
+      description:
+        row.description || "Edit this program and step through its execution.",
+      focus: row.sandbox_name,
+      source: row.source,
+    })),
+  ];
+  const example =
+    allExamples.find((row) => row.id === exampleId) || visualizationExamples[0];
   const [source, setSource] = useState(example.source);
   const [samples, setSamples] = useState<Samples | null>(null),
     [samplePath, setSamplePath] = useState("");
@@ -74,6 +101,27 @@ export default function CodeVisualizer({
     [focused, setFocused] = useState("");
   const sequence = useRef(0),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    setSandboxes([]);
+    setCanEditLibrary(false);
+    setLibraryError("");
+    setAuthoring(null);
+    if (activity) return;
+    let current = true;
+    api("visualizations/library/", undefined, courseId)
+      .then((data) => {
+        if (current) {
+          setSandboxes(data.sandboxes);
+          setCanEditLibrary(data.can_edit);
+        }
+      })
+      .catch((failure) => {
+        if (current) setLibraryError(failure.message);
+      });
+    return () => {
+      current = false;
+    };
+  }, [activity, courseId, libraryRetry]);
   const step = trace?.steps[index],
     previous = trace?.steps[index - 1];
   const final = !!trace && index === trace.steps.length - 1;
@@ -110,7 +158,7 @@ export default function CodeVisualizer({
       sequence.current++;
       clearTimeout(timer.current);
     };
-  }, [activity]);
+  }, [activity, courseId]);
   useEffect(() => {
     if (!playing || !trace) return;
     if (index >= trace.steps.length - 1) {
@@ -155,10 +203,10 @@ export default function CodeVisualizer({
     setError("");
   }
   async function buildTrace() {
-    if (busy || loading) return;
+    if (busy || loading || authoring) return;
     clearTrace();
     setBusy(true);
-    setPhase("Queued for the Python runnerâ€¦");
+    setPhase("Queued for the Python runner…");
     const version = ++sequence.current;
     const deadline = Date.now() + 310000;
     try {
@@ -198,8 +246,8 @@ export default function CodeVisualizer({
             );
           setPhase(
             state.status === "running"
-              ? "Tracing Python executionâ€¦"
-              : "Queued for the Python runnerâ€¦",
+              ? "Tracing Python execution…"
+              : "Queued for the Python runner…",
           );
           timer.current = setTimeout(() => void poll(), 700);
         } catch (e) {
@@ -225,7 +273,7 @@ export default function CodeVisualizer({
           title={`View ${heap[value.ref]?.type || "object"} #${value.ref}`}
           onClick={() => setFocused(value.ref!)}
         >
-          â†— {heap[value.ref]?.type || "object"} #{value.ref}
+          ↗ {heap[value.ref]?.type || "object"} #{value.ref}
         </button>
       );
     const text =
@@ -242,7 +290,7 @@ export default function CodeVisualizer({
       <span className={`viz-value type-${value.type}`}>
         <code>
           {text}
-          {value.truncated ? "â€¦" : ""}
+          {value.truncated ? "…" : ""}
         </code>
         <small>{value.type}</small>
       </span>
@@ -254,7 +302,7 @@ export default function CodeVisualizer({
     step.frames.length === 1 &&
     trace?.status === "ok" &&
     !trace.truncated;
-  const topics = [...new Set(visualizationExamples.map((row) => row.topic))];
+  const topics = [...new Set(allExamples.map((row) => row.topic))];
   return (
     <div className="viz-shell">
       <header className="viz-nav">
@@ -289,26 +337,86 @@ export default function CodeVisualizer({
                 : "Choose an example or edit the code, then step through its execution."}
             </p>
           </div>
+          {!activity && canEditLibrary && (
+            <button
+              className="viz-add-sandbox"
+              disabled={busy || !!authoring}
+              onClick={() => {
+                setSavedNotice("");
+                setAuthoring("new");
+              }}
+            >
+              <Plus size={17} /> Add sandbox
+            </button>
+          )}
         </div>
+        {!activity && libraryError && (
+          <div className="viz-alert error" role="alert">
+            Course sandboxes couldn’t load: {libraryError}{" "}
+            <button onClick={() => setLibraryRetry((value) => value + 1)}>
+              Try again
+            </button>
+          </div>
+        )}
+        {savedNotice && (
+          <div className="viz-sandbox-notice" role="status">
+            {savedNotice}
+          </div>
+        )}
+        {authoring && canEditLibrary && (
+          <VisualizationSandboxEditor
+            key={`${authoring}-${customSandbox?.id || "new"}`}
+            sandbox={authoring === "edit" ? customSandbox || null : null}
+            initialSource={
+              authoring === "edit" ? source : 'print("Hello, Trellis!")\n'
+            }
+            courseId={courseId}
+            onCancel={() => setAuthoring(null)}
+            onSaved={(row) => {
+              setSandboxes((current) =>
+                [...current.filter((item) => item.id !== row.id), row].sort(
+                  (a, b) => a.title.localeCompare(b.title),
+                ),
+              );
+              setExampleId(`course-${row.id}`);
+              setSource(row.source);
+              clearTrace();
+              setAuthoring(null);
+              setSavedNotice("Sandbox saved to the course library.");
+            }}
+          />
+        )}
         {!activity && (
           <div className="viz-library" aria-label="Python examples">
             {topics.map((topic) => (
               <section key={topic}>
                 <h2>{topic}</h2>
-                {visualizationExamples
+                {allExamples
                   .filter((row) => row.topic === topic)
                   .map((row) => (
                     <button
                       key={row.id}
                       aria-pressed={row.id === exampleId}
-                      disabled={busy}
+                      disabled={busy || !!authoring}
                       onClick={() => {
                         clearTrace();
+                        setSavedNotice("");
                         setExampleId(row.id);
                         setSource(row.source);
                       }}
                     >
-                      <span>{row.title}</span>
+                      <span>
+                        {row.title}
+                        {row.id.startsWith("course-") && (
+                          <small className="viz-library-name">
+                            {
+                              sandboxes.find(
+                                (item) => `course-${item.id}` === row.id,
+                              )?.sandbox_name
+                            }
+                          </small>
+                        )}
+                      </span>
                       <ArrowRight size={15} />
                     </button>
                   ))}
@@ -346,7 +454,7 @@ export default function CodeVisualizer({
         )}
         {loading ? (
           <div className="viz-loading" role="status">
-            Opening sample answersâ€¦
+            Opening sample answers…
           </div>
         ) : activity && !samples ? (
           <button onClick={onBack}>Return to exercise</button>
@@ -381,7 +489,23 @@ export default function CodeVisualizer({
                       ))}
                     </select>
                   ) : (
-                    <small>{activity ? samplePath : "Python"}</small>
+                    <small>
+                      {activity
+                        ? samplePath
+                        : customSandbox?.sandbox_name || "Python"}
+                    </small>
+                  )}
+                  {!activity && customSandbox && canEditLibrary && (
+                    <button
+                      className="viz-reset"
+                      disabled={busy || !!authoring}
+                      onClick={() => {
+                        setSavedNotice("");
+                        setAuthoring("edit");
+                      }}
+                    >
+                      <SquarePen size={15} /> Edit sandbox
+                    </button>
                   )}
                   {!activity && (
                     <button
@@ -389,7 +513,9 @@ export default function CodeVisualizer({
                       type="button"
                       title="Restore the selected example code"
                       aria-label="Reset code to the selected example"
-                      disabled={busy || source === example.source}
+                      disabled={
+                        busy || !!authoring || source === example.source
+                      }
                       onClick={() => {
                         setSource(example.source);
                         clearTrace();
@@ -401,16 +527,16 @@ export default function CodeVisualizer({
                   )}
                 </div>
                 <Suspense
-                  fallback={<div className="viz-loading">Opening editorâ€¦</div>}
+                  fallback={<div className="viz-loading">Opening editor…</div>}
                 >
                   <EditorPane
-                    path={`visualizer/${activity || "lab"}/${samplePath || "example.py"}`}
+                    path={`visualizer/${courseId}/${activity || exampleId}/${samplePath || "example.py"}`}
                     value={source}
                     onChange={(text) => {
                       setSource(text);
                       clearTrace();
                     }}
-                    disabled={busy || !!trace || !!activity}
+                    disabled={busy || !!trace || !!activity || !!authoring}
                     theme="light"
                     height="440px"
                     activeLine={step && !done ? step.line : undefined}
@@ -424,12 +550,12 @@ export default function CodeVisualizer({
                 <div className="viz-build">
                   <button
                     className="primary"
-                    disabled={busy || !source.trim()}
+                    disabled={busy || !!authoring || !source.trim()}
                     onClick={() => void buildTrace()}
                   >
                     <Play size={16} />
                     {busy
-                      ? "Building traceâ€¦"
+                      ? "Building trace…"
                       : trace
                         ? "Rebuild trace"
                         : "Visualize code"}

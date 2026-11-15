@@ -657,3 +657,23 @@
 .viz-panel-heading .viz-reset:disabled { opacity:.5; cursor:not-allowed; }
 @media (max-width:1000px) { .viz-main:has(.viz-library) { grid-template-columns:220px minmax(0,1fr); gap:0 18px; } }
 @media (max-width:700px) { .viz-main:has(.viz-library) { display:block; } .viz-main:has(.viz-library) > .viz-library { display:grid; grid-template-columns:1fr; max-height:42vh; overflow-y:auto; margin-bottom:22px; } .viz-library button[aria-pressed="true"]::after { display:none; } }
+
+.viz-add-sandbox { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 16px; min-height:44px; background:#506c64; color:#fff; border-radius:10px; font-weight:700; white-space:nowrap; }
+.viz-library-name { display:block; margin-top:4px; font-size:12px; font-weight:400; opacity:.85; overflow-wrap:anywhere; }
+.viz-sandbox-editor { grid-column:2; padding:24px; margin-bottom:24px; border:1px solid #b8c9be; border-radius:16px; background:var(--viz-paper); box-shadow:0 8px 24px #102c3608; min-width:0; }
+.viz-sandbox-editor > header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.viz-sandbox-editor h2 { margin:5px 0 0; font-size:24px; }
+.viz-sandbox-editor > p { margin:12px 0 20px; color:#526168; font-size:14px; }
+.viz-sandbox-editor fieldset { padding:0; margin:0; border:0; min-width:0; }
+.viz-sandbox-fields { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.viz-sandbox-editor label { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; font-size:14px; font-weight:700; }
+.viz-sandbox-editor label span { font-weight:400; color:#526168; }
+.viz-sandbox-editor input,.viz-sandbox-editor textarea { width:100%; min-width:0; box-sizing:border-box; border:1px solid #b8c9be; border-radius:9px; background:#fff; padding:11px 12px; font:inherit; font-weight:400; color:#102c36; }
+.viz-sandbox-code { border:1px solid #b8c9be; border-radius:10px; overflow:hidden; margin-bottom:18px; }
+.viz-sandbox-code > strong { display:block; padding:10px 14px; border-bottom:1px solid #b8c9be; background:#eef3ee; font-size:13px; }
+.viz-sandbox-editor footer { display:flex; align-items:center; gap:12px; }
+.viz-sandbox-editor footer button { min-height:42px; display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:9px; }
+.viz-sandbox-editor footer .primary { background:#506c64; color:#fff; }
+.viz-sandbox-notice { grid-column:2; margin-bottom:18px; padding:12px 16px; border-radius:10px; background:#e1efe3; color:#28553b; }
+.viz-panel-heading small { overflow-wrap:anywhere; }
+@media (max-width:700px) { .viz-heading { flex-wrap:wrap; } .viz-sandbox-fields { grid-template-columns:1fr; gap:0; } .viz-sandbox-editor { padding:18px; } }

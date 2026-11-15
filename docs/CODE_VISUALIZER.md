@@ -8,6 +8,12 @@ Building a trace runs real CPython in a disposable Docker container. Playback ha
 
 For a regular published coding exercise, a successful full-credit submission unlocks Visualize sample. The API verifies the successful submission for that user and revision. It reads the selected sample from staff files on the server, ignoring any source supplied by the client. Multiple sample answers are selectable. Where supported, a public-test-input selector replaces module input variables or adds a visible function call to the sample. The displayed program is exactly the one traced; expected answers are omitted. Choose Sample as written to trace the original code. Inputs requiring specialized fixtures are omitted from the selector. Replaying does not modify the student's editor, workspace, grade, or submission history. Instructors and TAs can inspect regular published samples; staff in student view follow the student unlock rule. Quiz samples are unavailable to every role through these endpoints, and the standalone library is blocked during an active exam.
 
+## Instructor-created sandboxes
+
+In the standalone **Code visualizer**, instructors can choose **Add sandbox**, enter a **Title** and separate **Sandbox name**, add an optional description, and write Python in the syntax-highlighted editor. **Create sandbox** makes it available in that course's **Course sandboxes** library. The title labels the library entry and editor; the sandbox name appears below the title and beside the editor. These labels are not filesystem paths.
+
+Select a course sandbox and choose **Edit sandbox** to change its fields or save revised code. Saving includes any changes currently in the main editor. Concurrent edits are version-checked so an old tab cannot overwrite a newer save. Changes persist in the database across reloads and restarts. Students and TAs can explore a local copy but cannot change the course library; instructors in student view have the same restriction. Built-in examples remain available. Sandboxes use the existing isolated execution queue and do not earn points or alter student workspaces.
+
 ## Local setup
 
 Start the normal Docker services, apply migrations, and run the host worker:
@@ -26,6 +32,9 @@ All routes require a logged-in, enrolled user. POST routes require the normal CS
 
 | Request | Body / response |
 | --- | --- |
+| `GET /api/visualizations/library/` | Selected course's public sandbox library and `can_edit` capability. Requires active enrollment; use `X-Trellis-Course` to select the course. |
+| `POST /api/visualizations/library/new/` | Instructor only: `{title, sandbox_name, description, source}`. Returns `{sandbox}` with stable ID and version; 201 on creation. |
+| `POST /api/visualizations/library/<sandbox_id>/` | Instructor only: same fields plus `version`. Returns the updated sandbox; stale version returns 409. |
 | `GET /api/visualizations/samples/<activity_id>/` | Authorized regular samples: `{title, revision, samples: [{path, source}], cases, selected_case}`. Use `?case=<id>` or `?case=original` to select public inputs. Locked or quiz samples return 403. |
 | `POST /api/visualizations/` | Free lab: `{source, stdin?}`. Exercise: `{activity, sample, revision?, case?, stdin?}` with a server-owned sample path. Returns `{id, status}`; include the fetched revision to reject stale walkthroughs with 409. |
 | `GET /api/visualizations/<job_uuid>/` | Owner only: `{id, status, result}`. Completed results contain `{trace, execution_status}`. |

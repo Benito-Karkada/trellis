@@ -124,3 +124,11 @@ urlpatterns += [path("api/discussions/", discussions.list_threads),
     path("api/discussions/attachments/<int:pk>/", discussions.download_attachment),
     path("api/discussions/attachments/<int:pk>/remove/", discussions.remove_attachment),
     path("api/discussions/replies/<int:pk>/action/", discussions.reply_action)]
+
+
+from core import visualization_library
+urlpatterns += [
+    path("api/visualizations/library/", visualization_library.library),
+    path("api/visualizations/library/new/", visualization_library.create),
+    path("api/visualizations/library/<int:pk>/", visualization_library.update),
+]
