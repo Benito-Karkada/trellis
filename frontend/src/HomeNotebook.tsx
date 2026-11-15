@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import UpcomingPanel from "./UpcomingPanel";
+import MountainJourney from "./MountainJourney";
+import type { JourneyLesson } from "./journeyProgress";
 import type { useUpcoming } from "./useUpcoming";
 
-/** Spiral-notebook carousel: slide 1 is the Upcoming list, slide 2 is an empty square for now (the course-map picture goes there later). */
+/** Upcoming deadlines and the student's course journey share the notebook. */
 export default function HomeNotebook({
   upcoming,
   onOpen,
   onManageDeadlines,
+  lessons,
+  example,
 }: {
   upcoming: ReturnType<typeof useUpcoming>;
   onOpen: (lesson: number, activity: number | null) => void;
   onManageDeadlines?: () => void;
+  lessons: JourneyLesson[];
+  example: boolean;
 }) {
   const [slide, setSlide] = useState(0);
   return (
@@ -60,8 +66,7 @@ export default function HomeNotebook({
               aria-hidden={slide !== 1}
               inert={slide !== 1}
             >
-              {/* Placeholder. Replace this square with the picture (an <img> or an inline SVG) when it is ready. */}
-              <div className="ch-nb-placeholder" aria-hidden="true" />
+              <MountainJourney lessons={lessons} mountain={example} />
             </div>
           </div>
         </div>

@@ -14,7 +14,7 @@ type Resume = { lesson_id: number; activity_id: number; lesson_title: string; ac
 
 /** The student view of the course home page (everything except the structure editor). */
 export default function CourseHomeView({
-  title, code, term, example, onCourses, lessons, quizzes, canManage, resume, busy, error, notice,
+  title, code, example, onCourses, lessons, quizzes, canManage, resume, busy, error, notice,
   upcoming,
   onVisualize, onOpen, onGradebook, onSettings, onDiscussions, onEditStructure, onSignOut,
 }: {
@@ -60,7 +60,7 @@ export default function CourseHomeView({
       <div className="ch-body">
         <aside className="ch-panel">
           <div className="ch-hero">
-            <span className="ch-hero-kicker">{[code,term].filter(Boolean).join(" · ") || "YOUR COURSE"}</span>
+            <span className="ch-hero-kicker">{code || "YOUR COURSE"}</span>
             <h1>{title}</h1>
             <p>Lessons, problem sets, and programming assessments.</p>
           </div>
@@ -81,11 +81,11 @@ export default function CourseHomeView({
               <span className="ch-resume-continue">Continue <ArrowRight size={18} /></span>
             </a>
           )}
-          <HomeNotebook upcoming={upcoming} onOpen={onOpen} onManageDeadlines={canManage ? onSettings : undefined} />
+          <HomeNotebook lessons={lessons} example={example} upcoming={upcoming} onOpen={onOpen} onManageDeadlines={canManage ? onSettings : undefined} />
         </aside>
         <main className="ch-pages">
           {!lessons.length&&!quizzes.length&&<section className="library-empty"><BookOpen size={34}/><h2>Your course starts here</h2><p>{canManage?"Add your first section, then build lessons, videos, questions, and coding exercises.":"Your instructor is preparing this course. Check back for new content."}</p>{canManage&&<button className="primary" onClick={onEditStructure}>Add course content</button>}</section>}
-          <UnitOverview lessons={lessons} quizzes={quizzes} onOpen={onOpen} onDiscussions={onDiscussions} />
+          <UnitOverview example={example} lessons={lessons} quizzes={quizzes} onOpen={onOpen} onDiscussions={onDiscussions} />
         </main>
       </div>
     </div>
